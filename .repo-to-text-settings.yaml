@@ -20,3 +20,4 @@ ignore-content:
   - ".prettierignore"
   - ".prettierrc"
   - ".gitignore"
+  - "package-lock.json"
