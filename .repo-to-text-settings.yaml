@@ -8,16 +8,16 @@ gitignore-import-and-ignore: True
 # Ignore files and directories for tree
 # and "Contents of ..." sections
 ignore-tree-and-content:
-  - ".repo-to-text-settings.yaml"
-  - "dist"
-  - "node_modules"
-  - "icon"
+    - ".repo-to-text-settings.yaml"
+    - "dist"
+    - "node_modules"
+    - "icon"
 
 # Ignore files and directories for "Contents of ..." section
 ignore-content:
-  - "README.md"
-  - "LICENSE"
-  - ".prettierignore"
-  - ".prettierrc"
-  - ".gitignore"
-  - "package-lock.json"
+    - "README.md"
+    - "LICENSE"
+    - ".prettierignore"
+    - ".prettierrc"
+    - ".gitignore"
+    - "package-lock.json"
