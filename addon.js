@@ -41,12 +41,28 @@ module.exports = function (config) {
         description:
             "Stream your Real Debrid files in Stremio. Disclaimer: This addon is not official and is not affiliated with the Real Debrid website.",
         idPrefixes: ["rd:"],
-        logo: "https://i.ibb.co.com/JHmv8p6/Real-Debrid-Icon.png",
+        logo: "https://i.ibb.co/JHmv8p6/Real-Debrid-Icon.png",
     };
 
     const builder = new addonBuilder(manifest);
 
+    function cleanFileName(filename) {
+        let name = filename
+            .replace(/\.(mkv|mp4|avi|wmv|flv|mov|webm|mpg|mpeg|iso)$/i, "")
+            .replace(/[\._]/g, " ")
+            .replace(/\b\d{4}\b/g, "")
+            .replace(
+                /\b(1080p|720p|480p|2160p|4K|WEBRip|BluRay|x264|x265|H\.?264|H\.?265|HEVC|HDRip|BRRip|DVD|DVDRip|CAM|TS|HDTS|R5|HDRip|HDR|SDR|AAC|DDP\d+\.\d+|DDP|DD|DTS|Atmos|TrueHD|MP3|FLAC|EAC3|AC3|HQ|Hi10P|10bit|AVC|DivX|XviD|Subbed|Hindi|Dual Audio|Dubbed|Multi|ENG|HIN|SPA|FRE|GER|ITA|JAP|KOR|VOSTFR|AMZN|NF|WEB-DL|WEBRip|WEB|HDRip|HDCAM|HC)\b/gi,
+                ""
+            )
+            .replace(/\s+/g, " ")
+            .trim();
+        name = name.split(/ - | – | \[ |\(/)[0].trim();
+        return name;
+    }
+
     async function fetchTorrents() {
+        if (!apiKey) return [];
         const response = await axios.get(`${API_BASE_URL}/torrents`, {
             headers: {
                 Authorization: `Bearer ${apiKey}`,
@@ -56,6 +72,7 @@ module.exports = function (config) {
     }
 
     async function fetchTorrentInfo(torrentId) {
+        if (!apiKey) return null;
         const response = await axios.get(
             `${API_BASE_URL}/torrents/info/${torrentId}`,
             {
@@ -68,6 +85,8 @@ module.exports = function (config) {
     }
 
     async function getMetadata(name, type) {
+        let metadata = null;
+
         if (tmdbApiKey) {
             const tmdbBaseUrl = "https://api.themoviedb.org/3";
             const queryType = type === "movie" ? "movie" : "tv";
@@ -82,13 +101,18 @@ module.exports = function (config) {
                     }
                 );
                 if (response.data.results && response.data.results.length > 0) {
-                    return { source: "tmdb", data: response.data.results[0] };
+                    metadata = {
+                        source: "tmdb",
+                        data: response.data.results[0],
+                    };
+                    return metadata;
                 }
             } catch (error) {
                 console.error("TMDb API Error:", error.message);
-                return null;
             }
-        } else if (omdbApiKey) {
+        }
+
+        if (omdbApiKey && !metadata) {
             try {
                 const response = await axios.get("http://www.omdbapi.com/", {
                     params: {
@@ -98,13 +122,46 @@ module.exports = function (config) {
                     },
                 });
                 if (response.data && response.data.Response !== "False") {
-                    return { source: "omdb", data: response.data };
+                    metadata = {
+                        source: "omdb",
+                        data: response.data,
+                    };
+                    return metadata;
                 }
             } catch (error) {
                 console.error("OMDb API Error:", error.message);
-                return null;
             }
         }
+
+        if (tmdbApiKey && !metadata) {
+            const tmdbBaseUrl = "https://api.themoviedb.org/3";
+            const queryType = type === "movie" ? "movie" : "tv";
+            try {
+                const response = await axios.get(
+                    `${tmdbBaseUrl}/search/${queryType}`,
+                    {
+                        params: {
+                            api_key: tmdbApiKey,
+                            query: name,
+                            include_adult: true,
+                        },
+                    }
+                );
+                if (response.data.results && response.data.results.length > 0) {
+                    metadata = {
+                        source: "tmdb",
+                        data: response.data.results[0],
+                    };
+                    return metadata;
+                }
+            } catch (error) {
+                console.error(
+                    "TMDb API Error (second attempt):",
+                    error.message
+                );
+            }
+        }
+
         return null;
     }
 
@@ -138,6 +195,7 @@ module.exports = function (config) {
     }
 
     async function unrestrictLink(link) {
+        if (!apiKey) return null;
         try {
             const data = new URLSearchParams();
             data.append("link", link);
@@ -164,6 +222,9 @@ module.exports = function (config) {
 
         try {
             let torrents = await fetchTorrents();
+            if (!torrents || torrents.length === 0) {
+                return { metas: [] };
+            }
             torrents = torrents.filter(
                 (torrent) => torrent.status === "downloaded"
             );
@@ -185,10 +246,14 @@ module.exports = function (config) {
 
             const metas = [];
             for (const torrent of filteredTorrents) {
-                const name = torrent.filename
-                    .replace(/\.(mkv|mp4|avi|wmv|flv|mov|webm|mpg|mpeg)$/i, "")
-                    .replace(/[\._]/g, " ");
+                const name = cleanFileName(torrent.filename);
                 const metadata = await getMetadata(name, type);
+                console.log(
+                    "Catalog Handler - metadata for",
+                    name,
+                    ":",
+                    metadata
+                );
                 if (metadata) {
                     if (
                         metadata.source === "tmdb" &&
@@ -218,14 +283,22 @@ module.exports = function (config) {
                             background: metadata.data.Poster,
                         });
                     } else {
+                        const posterPath = metadata.data.poster_path
+                            ? `https://image.tmdb.org/t/p/w500${metadata.data.poster_path}`
+                            : "https://via.placeholder.com/150";
+
                         metas.push({
                             id: `rd:${torrent.id}`,
                             type,
-                            name: name,
-                            poster: "https://via.placeholder.com/150",
+                            name: metadata.data.title || metadata.data.name,
+                            poster: posterPath,
                             posterShape: "poster",
-                            description: "No description available",
-                            background: "https://via.placeholder.com/800x450",
+                            description:
+                                metadata.data.overview ||
+                                "No description available",
+                            background: metadata.data.backdrop_path
+                                ? `https://image.tmdb.org/t/p/original${metadata.data.backdrop_path}`
+                                : "https://via.placeholder.com/800x450",
                         });
                     }
                 } else {
@@ -251,15 +324,17 @@ module.exports = function (config) {
     builder.defineMetaHandler(async (args) => {
         const { type, id } = args;
 
-        const torrentId = id.replace("rd:", "");
+        const torrentId = id.replace(/^rd:/, "").split(":")[0];
 
         try {
             const torrentInfo = await fetchTorrentInfo(torrentId);
+            if (!torrentInfo) {
+                return { meta: null };
+            }
 
-            const name = torrentInfo.filename
-                .replace(/\.(mkv|mp4|avi|wmv|flv|mov|webm|mpg|mpeg)$/i, "")
-                .replace(/[\._]/g, " ");
+            const name = cleanFileName(torrentInfo.filename);
             const metadata = await getMetadata(name, type);
+            console.log("Meta Handler - metadata:", metadata);
 
             let meta;
             if (metadata) {
@@ -293,11 +368,17 @@ module.exports = function (config) {
                     meta = {
                         id,
                         type,
-                        name: name,
-                        poster: "https://via.placeholder.com/150",
+                        name: metadata.data.title || metadata.data.name,
+                        poster: metadata.data.poster_path
+                            ? `https://image.tmdb.org/t/p/w500${metadata.data.poster_path}`
+                            : "https://via.placeholder.com/150",
                         posterShape: "poster",
-                        description: "No description available",
-                        background: "https://via.placeholder.com/800x450",
+                        description:
+                            metadata.data.overview ||
+                            "No description available",
+                        background: metadata.data.backdrop_path
+                            ? `https://image.tmdb.org/t/p/original${metadata.data.backdrop_path}`
+                            : "https://via.placeholder.com/800x450",
                         videos: [],
                     };
                 }
@@ -335,19 +416,29 @@ module.exports = function (config) {
     builder.defineStreamHandler(async (args) => {
         const { type, id } = args;
 
-        const idParts = id.split(":");
-        const torrentId = idParts[0].replace("rd:", "");
+        const torrentId = id.replace(/^rd:/, "").split(":")[0];
 
         try {
             const torrentInfo = await fetchTorrentInfo(torrentId);
+            if (!torrentInfo) {
+                return { streams: [] };
+            }
             const files = torrentInfo.files;
             const links = torrentInfo.links;
 
+            console.log("Stream Handler - torrentId:", torrentId);
+            console.log("Stream Handler - files:", files);
+            console.log("Stream Handler - links:", links);
+
             if (type === "movie") {
                 if (files.length > 0 && links.length > 0) {
-                    const unrestricted = await unrestrictLink(links[0]);
+                    const file = files[0];
+                    const link = links[0];
+
+                    const unrestricted = await unrestrictLink(link);
+                    if (!unrestricted) return { streams: [] };
                     const stream = {
-                        title: files[0].path,
+                        title: file.path,
                         url: unrestricted.download,
                     };
                     return { streams: [stream] };
@@ -355,6 +446,7 @@ module.exports = function (config) {
                     return { streams: [] };
                 }
             } else if (type === "series") {
+                const idParts = id.split(":");
                 const fileId = parseInt(idParts[1], 10);
                 const fileIndex = parseInt(idParts[2], 10);
 
@@ -363,9 +455,13 @@ module.exports = function (config) {
                     files[fileIndex].id === fileId &&
                     links[fileIndex]
                 ) {
-                    const unrestricted = await unrestrictLink(links[fileIndex]);
+                    const file = files[fileIndex];
+                    const link = links[fileIndex];
+
+                    const unrestricted = await unrestrictLink(link);
+                    if (!unrestricted) return { streams: [] };
                     const stream = {
-                        title: files[fileIndex].path,
+                        title: file.path,
                         url: unrestricted.download,
                     };
                     return { streams: [stream] };
@@ -381,6 +477,7 @@ module.exports = function (config) {
             }
         } catch (error) {
             console.error("Stream Handler Error:", error.message);
+            console.error(error);
             return { streams: [] };
         }
     });
