@@ -1,0 +1,202 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Configure Real Debrid Addon</title>
+        <link
+            rel="apple-touch-icon-precomposed"
+            sizes="57x57"
+            href="icon/apple-touch-icon-57x57.png"
+        />
+        <link
+            rel="apple-touch-icon-precomposed"
+            sizes="114x114"
+            href="icon/apple-touch-icon-114x114.png"
+        />
+        <link
+            rel="apple-touch-icon-precomposed"
+            sizes="72x72"
+            href="icon/apple-touch-icon-72x72.png"
+        />
+        <link
+            rel="apple-touch-icon-precomposed"
+            sizes="144x144"
+            href="icon/apple-touch-icon-144x144.png"
+        />
+        <link
+            rel="apple-touch-icon-precomposed"
+            sizes="60x60"
+            href="icon/apple-touch-icon-60x60.png"
+        />
+        <link
+            rel="apple-touch-icon-precomposed"
+            sizes="120x120"
+            href="icon/apple-touch-icon-120x120.png"
+        />
+        <link
+            rel="apple-touch-icon-precomposed"
+            sizes="76x76"
+            href="icon/apple-touch-icon-76x76.png"
+        />
+        <link
+            rel="apple-touch-icon-precomposed"
+            sizes="152x152"
+            href="icon/apple-touch-icon-152x152.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            href="icon/favicon-196x196.png"
+            sizes="196x196"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            href="icon/favicon-96x96.png"
+            sizes="96x96"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            href="icon/favicon-32x32.png"
+            sizes="32x32"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            href="icon/favicon-16x16.png"
+            sizes="16x16"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            href="icon/favicon-128.png"
+            sizes="128x128"
+        />
+        <meta name="application-name" content="Stremio Real Debrid Addon" />
+        <meta name="msapplication-TileColor" content="#FFFFFF" />
+        <meta
+            name="msapplication-TileImage"
+            content="icon/mstile-144x144.png"
+        />
+        <meta
+            name="msapplication-square70x70logo"
+            content="icon/mstile-70x70.png"
+        />
+        <meta
+            name="msapplication-square150x150logo"
+            content="mstile-150x150.png"
+        />
+        <meta
+            name="msapplication-wide310x150logo"
+            content="mstile-310x150.png"
+        />
+        <meta
+            name="msapplication-square310x310logo"
+            content="mstile-310x310.png"
+        />
+
+        <link href="dist/main.css" rel="stylesheet" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400..900&display=swap"
+            rel="stylesheet"
+        />
+    </head>
+
+    <body class="flex min-h-screen items-center justify-center bg-gray-100">
+        <div class="w-full max-w-md rounded bg-white p-8 shadow-md">
+            <div class="flex items-center justify-center">
+                <a href="/" class="inline-block">
+                    <img
+                        src="https://i.ibb.co.com/JHmv8p6/Real-Debrid-Icon.png"
+                        class="h-32"
+                        alt="Real Debrid Icon"
+                    />
+                </a>
+            </div>
+
+            <div class="flex items-center justify-center">
+                <h1 class="mb-4 text-2xl font-bold">
+                    Configure Real Debrid Addon
+                </h1>
+            </div>
+
+            <form method="POST" action="/install">
+                <div class="mb-4">
+                    <label
+                        for="apiKey"
+                        class="mb-2 block font-medium text-gray-700"
+                        >Real Debrid API Key:</label
+                    >
+                    <input
+                        type="text"
+                        id="apiKey"
+                        name="apiKey"
+                        required
+                        class="block w-full rounded border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                    />
+                    <p class="mt-2 text-sm text-gray-500">
+                        You can obtain your Real Debrid API Key from
+                        <a
+                            href="https://real-debrid.com/apitoken"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="font-medium text-blue-500 hover:text-blue-700"
+                            >here</a
+                        >.
+                    </p>
+                </div>
+                <div class="mb-4">
+                    <label
+                        for="tmdbApiKey"
+                        class="mb-2 block font-medium text-gray-700"
+                        >TMDb API Key (Optional):</label
+                    >
+                    <input
+                        type="text"
+                        id="tmdbApiKey"
+                        name="tmdbApiKey"
+                        class="block w-full rounded border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                    />
+                </div>
+                <div class="mb-4">
+                    <label
+                        for="omdbApiKey"
+                        class="mb-2 block font-medium text-gray-700"
+                        >OMDb API Key (Optional):</label
+                    >
+                    <input
+                        type="text"
+                        id="omdbApiKey"
+                        name="omdbApiKey"
+                        class="block w-full rounded border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                    />
+                </div>
+                <div class="flex items-center justify-between">
+                    <button
+                        type="submit"
+                        class="rounded bg-indigo-600 px-3 py-1.5 text-lg font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                    >
+                        Install Addon
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-4 flex items-center justify-center">
+                <p class="text-sm font-semibold text-orange-600">
+                    Disclaimer: This addon is not official and is not affiliated
+                    with the
+                    <a
+                        href="https://real-debrid.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="underline transition duration-300 hover:text-orange-700"
+                        >Real Debrid</a
+                    >
+                    website.
+                </p>
+            </div>
+        </div>
+    </body>
+</html>

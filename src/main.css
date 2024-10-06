@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html,
+    body {
+        font-family: "Maven Pro", sans-serif;
+        font-optical-sizing: auto;
+        font-style: normal;
+        font-variant-ligatures: normal;
+        font-size: 16px;
+    }
+}
+
+[x-cloak] {
+    display: none !important;
+}

@@ -1,0 +1,17 @@
+{
+    "name": "stremio-addon-realdebrid",
+    "version": "0.0.1",
+    "description": "Stream your Real Debrid files in Stremio",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "@tailwindcss/forms": "^0.5.9",
+        "axios": "^1.7.7",
+        "express": "^4.21.0",
+        "prettier": "^3.3.3",
+        "prettier-plugin-tailwindcss": "^0.6.8",
+        "stremio-addon-sdk": "1.1.x",
+        "tailwindcss": "^3.4.13"
+    }
+}
