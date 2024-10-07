@@ -27,6 +27,8 @@ const VIDEO_EXTENSIONS = [
     ".xvid",
 ];
 
+const SAMPLE_FILE_REGEX = /sample/i;
+
 module.exports = function (config) {
     const apiKey = config.apiKey;
     const tmdbApiKey = config.tmdbApiKey;
@@ -70,17 +72,35 @@ module.exports = function (config) {
 
     const builder = new addonBuilder(manifest);
 
+    function isSeries(filename) {
+        const patterns = [
+            /S\d{1,2}[\s_,.\-]?[Ee]\d{1,2}/i,
+            /Season[\s_,.\-]?\d{1,2}/i,
+            /\b\d{1,2}[\s_,.\-]?[xX][\s_,.\-]?\d{1,2}\b/i,
+            /Episode[\s_,.\-]?\d{1,2}/i,
+        ];
+
+        return patterns.some((pattern) => pattern.test(filename));
+    }
+
     function cleanFileName(filename) {
         let name = filename.replace(
             /\.(mkv|mp4|avi|wmv|flv|mov|webm|mpg|mpeg|iso|m4v|ts|m2ts|mts|m3u8|3gp|rmvb|vob|divx|xvid)$/i,
             ""
         );
         name = name.replace(/[\._]/g, " ");
+
+        name = name.replace(/S\d{1,2}[\s_.-]?E\d{1,2}(?:-\d{1,2})?/gi, "");
+        name = name.replace(/Season[\s_.-]?\d{1,2}/gi, "");
+        name = name.replace(/\b\d{1,2}x\d{1,2}\b/gi, "");
+        name = name.replace(/Episode[\s_.-]?(\d{1,2})/gi, "");
+
         let yearMatch = name.match(/\b(19|20)\d{2}\b/);
         let year = yearMatch ? yearMatch[0] : null;
         if (year) {
             name = name.replace(/\b(19|20)\d{2}\b/, "");
         }
+
         name = name.replace(
             /\b(1080p|720p|480p|2160p|4K|WEBRip|WEB-DL|BluRay|HDRip|BRRip|x264|x265|H\.?264|H\.?265|HEVC|DVDRip|DVDScr|CAM|TS|HDTS|R5|HDR|SDR|AAC|DDP\d+\.\d+|DDP|DD|DTS|Atmos|TrueHD|MP3|FLAC|EAC3|AC3|HQ|Hi10P|10bit|AVC|DivX|XviD|Subbed|Subtitle|Hindi|Dual Audio|Dubbed|Multi|ENG|HIN|SPA|FRE|GER|ITA|JAP|KOR|VOSTFR|AMZN|NF|HDCAM|HC|Rip|_)/gi,
             ""
@@ -117,7 +137,10 @@ module.exports = function (config) {
             );
             return response.data;
         } catch (error) {
-            console.error("Fetch Torrent Info Error:", error.message);
+            console.error(
+                `Fetch Torrent Info Error for Torrent ID ${torrentId}:`,
+                error.message
+            );
             return null;
         }
     }
@@ -126,88 +149,71 @@ module.exports = function (config) {
         let metadata = null;
 
         if (tmdbApiKey) {
-            const tmdbBaseUrl = "https://api.themoviedb.org/3";
-            const queryType = type === "movie" ? "movie" : "tv";
-            try {
-                const response = await axios.get(
-                    `${tmdbBaseUrl}/search/${queryType}`,
-                    {
-                        params: {
-                            api_key: tmdbApiKey,
-                            query: title,
-                            year: type === "movie" ? year : undefined,
-                            include_adult: false,
-                        },
-                    }
-                );
-                if (response.data.results && response.data.results.length > 0) {
-                    metadata = {
-                        source: "tmdb",
-                        data: response.data.results[0],
-                    };
-                    return metadata;
-                }
-            } catch (error) {
-                console.error("TMDb API Error:", error.message);
-            }
+            metadata = await fetchTmdbMetadata(title, year, type);
         }
 
         if (omdbApiKey && !metadata) {
-            try {
-                const params = {
-                    apikey: omdbApiKey,
-                    t: title,
-                    type: type === "movie" ? "movie" : "series",
-                };
-                if (year) {
-                    params.y = year;
-                }
-
-                const response = await axios.get("https://www.omdbapi.com/", {
-                    params,
-                });
-
-                if (response.data && response.data.Response !== "False") {
-                    metadata = {
-                        source: "omdb",
-                        data: response.data,
-                    };
-                    return metadata;
-                }
-            } catch (error) {
-                console.error("OMDb API Error:", error.message);
-            }
+            metadata = await fetchOmdbMetadata(title, year, type);
         }
 
         if (tmdbApiKey && !metadata) {
-            const tmdbBaseUrl = "https://api.themoviedb.org/3";
-            const queryType = type === "movie" ? "movie" : "tv";
-            try {
-                const response = await axios.get(
-                    `${tmdbBaseUrl}/search/${queryType}`,
-                    {
-                        params: {
-                            api_key: tmdbApiKey,
-                            query: title,
-                            include_adult: false,
-                        },
-                    }
-                );
-                if (response.data.results && response.data.results.length > 0) {
-                    metadata = {
-                        source: "tmdb",
-                        data: response.data.results[0],
-                    };
-                    return metadata;
-                }
-            } catch (error) {
-                console.error(
-                    "TMDb API Error (second attempt):",
-                    error.message
-                );
-            }
+            metadata = await fetchTmdbMetadata(title, null, type);
         }
 
+        return metadata;
+    }
+
+    async function fetchTmdbMetadata(title, year, type) {
+        const tmdbBaseUrl = "https://api.themoviedb.org/3";
+        const queryType = type === "movie" ? "movie" : "tv";
+        try {
+            const response = await axios.get(
+                `${tmdbBaseUrl}/search/${queryType}`,
+                {
+                    params: {
+                        api_key: tmdbApiKey,
+                        query: title,
+                        year: year || undefined,
+                        include_adult: false,
+                    },
+                }
+            );
+            if (response.data.results && response.data.results.length > 0) {
+                return {
+                    source: "tmdb",
+                    data: response.data.results[0],
+                };
+            }
+        } catch (error) {
+            console.error("TMDb API Error:", error.message);
+        }
+        return null;
+    }
+
+    async function fetchOmdbMetadata(title, year, type) {
+        try {
+            const params = {
+                apikey: omdbApiKey,
+                t: title,
+                type: type === "movie" ? "movie" : "series",
+            };
+            if (year) {
+                params.y = year;
+            }
+
+            const response = await axios.get("https://www.omdbapi.com/", {
+                params,
+            });
+
+            if (response.data && response.data.Response !== "False") {
+                return {
+                    source: "omdb",
+                    data: response.data,
+                };
+            }
+        } catch (error) {
+            console.error("OMDb API Error:", error.message);
+        }
         return null;
     }
 
@@ -216,18 +222,44 @@ module.exports = function (config) {
 
         files.forEach((file, index) => {
             const ext = path.extname(file.path).toLowerCase();
-            if (!VIDEO_EXTENSIONS.includes(ext)) {
+            const filename = path.basename(file.path);
+
+            if (
+                !VIDEO_EXTENSIONS.includes(ext) ||
+                SAMPLE_FILE_REGEX.test(filename)
+            ) {
                 return;
             }
 
-            const match = file.path.match(/S(\d+)[\s_.-]?E(\d+)/i);
-            if (match) {
-                const season = parseInt(match[1], 10);
-                const episode = parseInt(match[2], 10);
+            const patterns = [
+                /S(\d{1,2})[\s_.-]?E(\d{1,2})/i,
+                /Season[\s_.-]?(\d{1,2})[\s_.-]?Episode[\s_.-]?(\d{1,2})/i,
+                /(\d{1,2})x(\d{1,2})/i,
+                /Episode[\s_.-]?(\d{1,2})/i,
+            ];
+
+            let season = null;
+            let episode = null;
+
+            for (const pattern of patterns) {
+                const match = filename.match(pattern);
+                if (match) {
+                    if (match[1] && match[2]) {
+                        season = parseInt(match[1], 10);
+                        episode = parseInt(match[2], 10);
+                    } else if (match[1]) {
+                        season = 1;
+                        episode = parseInt(match[1], 10);
+                    }
+                    break;
+                }
+            }
+
+            if (season !== null && episode !== null) {
                 episodes.push({
                     season,
                     episode,
-                    title: file.path,
+                    title: filename,
                     fileId: file.id,
                     index,
                 });
@@ -235,7 +267,7 @@ module.exports = function (config) {
                 episodes.push({
                     season: 1,
                     episode: episodes.length + 1,
-                    title: file.path,
+                    title: filename,
                     fileId: file.id,
                     index,
                 });
@@ -281,13 +313,13 @@ module.exports = function (config) {
                 (torrent) => torrent.status === "downloaded"
             );
 
-            let filteredTorrents = torrents.filter(
-                (torrent) =>
-                    (type === "movie" &&
-                        !torrent.filename.toLowerCase().includes("s0")) ||
-                    (type === "series" &&
-                        torrent.filename.toLowerCase().includes("s0"))
-            );
+            let filteredTorrents = torrents.filter((torrent) => {
+                const isSeriesTorrent = isSeries(torrent.filename);
+                return (
+                    (type === "movie" && !isSeriesTorrent) ||
+                    (type === "series" && isSeriesTorrent)
+                );
+            });
 
             if (extra && extra.search) {
                 const search = extra.search.toLowerCase();
@@ -300,12 +332,6 @@ module.exports = function (config) {
             for (const torrent of filteredTorrents) {
                 const { title, year } = cleanFileName(torrent.filename);
                 const metadata = await getMetadata(title, year, type);
-                console.log(
-                    "Catalog Handler - metadata for",
-                    title,
-                    ":",
-                    metadata
-                );
 
                 if (metadata) {
                     if (
@@ -392,7 +418,6 @@ module.exports = function (config) {
 
             const { title, year } = cleanFileName(torrentInfo.filename);
             const metadata = await getMetadata(title, year, type);
-            console.log("Meta Handler - metadata:", metadata);
 
             let meta;
             if (metadata) {
@@ -491,28 +516,31 @@ module.exports = function (config) {
 
             if (type === "movie") {
                 if (files.length > 0 && links.length > 0) {
-                    const file = files.find((f) =>
-                        VIDEO_EXTENSIONS.includes(
-                            path.extname(f.path).toLowerCase()
-                        )
+                    const videoFiles = files.filter(
+                        (f) =>
+                            VIDEO_EXTENSIONS.includes(
+                                path.extname(f.path).toLowerCase()
+                            ) && !SAMPLE_FILE_REGEX.test(f.path)
                     );
-                    const linkIndex = files.indexOf(file);
-                    const link = links[linkIndex];
+                    if (videoFiles.length > 0) {
+                        const file = videoFiles[0];
+                        const linkIndex = files.indexOf(file);
+                        const link = links[linkIndex];
 
-                    if (!file || !link) {
-                        console.error(
-                            "No valid video file or link found for movie."
-                        );
+                        if (!file || !link) {
+                            return { streams: [] };
+                        }
+
+                        const unrestricted = await unrestrictLink(link);
+                        if (!unrestricted) return { streams: [] };
+                        const stream = {
+                            title: file.path,
+                            url: encodeURI(unrestricted.download),
+                        };
+                        return { streams: [stream] };
+                    } else {
                         return { streams: [] };
                     }
-
-                    const unrestricted = await unrestrictLink(link);
-                    if (!unrestricted) return { streams: [] };
-                    const stream = {
-                        title: file.path,
-                        url: encodeURI(unrestricted.download),
-                    };
-                    return { streams: [stream] };
                 } else {
                     return { streams: [] };
                 }
@@ -535,10 +563,6 @@ module.exports = function (config) {
                     };
                     return { streams: [stream] };
                 } else {
-                    console.error(
-                        "File not found or link missing for fileId:",
-                        fileId
-                    );
                     return { streams: [] };
                 }
             } else {
