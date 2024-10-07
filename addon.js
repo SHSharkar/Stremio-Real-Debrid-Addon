@@ -87,31 +87,55 @@ module.exports = function (config) {
         let name = filename;
 
         name = name.replace(/\.[^/.]+$/, "");
-        name = name.replace(/[\._]/g, " ");
-        name = name.replace(/S\d{1,2}[\s_.-]?E\d{1,2}(?:-\d{1,2})?/gi, "");
-        name = name.replace(/Season[\s_.-]?\d{1,2}/gi, "");
-        name = name.replace(/\b\d{1,2}x\d{1,2}\b/gi, "");
-        name = name.replace(/Episode[\s_.-]?(\d{1,2})/gi, "");
 
-        let yearMatch = name.match(/(?:\(|\[|\{)?(19|20)\d{2}(?:\)|\]|\})?/);
+        name = name.replace(/[._]/g, " ");
+
+        let yearMatch = name.match(
+            /(?:\(|\[|\{)?((?:19|20)\d{2})(?:\)|\]|\})?/
+        );
         let year = yearMatch ? yearMatch[1] : null;
         if (yearMatch) {
             name = name.replace(yearMatch[0], "");
         }
 
+        name = name.replace(/S\d{1,2}[\s.-]?E\d{1,2}(?:-\d{1,2})?/gi, "");
+        name = name.replace(/Season[\s.-]?\d{1,2}/gi, "");
+        name = name.replace(/\b\d{1,2}x\d{1,2}\b/gi, "");
+        name = name.replace(/Episode[\s.-]?(\d{1,2})/gi, "");
+
         name = name.replace(
-            /\b(1080p|720p|480p|2160p|4K|WEBRip|WEB[- ]?DL|BluRay|HDRip|BRRip|x264|x265|H\.?264|H\.?265|HEVC|DVDRip|DVDScr|CAM|TS|HDTS|R5|HDR|SDR|AAC|DDP\d*\.\d*|DDP|DD|DTS|Atmos|TrueHD|MP3|FLAC|EAC3|AC3|HQ|Hi10P|10bit|AVC|DivX|XviD|Subbed|Subtitle|ESub|EngSub|Hindi|Dual Audio|Dubbed|Multi|ENG|HIN|SPA|FRE|GER|ITA|JAP|KOR|VOSTFR|AMZN|NF|HDCAM|HC|Rip|WEB|HDR|DV|DVDRip|Blu-ray|Remux|BDRemux|BDRip|DVDRip|_)\b/gi,
+            /\b(1080p|720p|480p|2160p|4K|2K|3D|iMAX|AMZN|WEBRip|WEB[- ]?DL|BluRay|HDRip|BRRip|BDRip|BDRemux|Remux|DVDRip|DVDScr|CAM|TS|HDTS|R5|HDR|SDR|HDCAM|HC|Rip|WEB|HDR|DV|HEVC|x264|x265|H\.?264|H\.?265|AVC|DivX|XviD|10bit|Hi10P)\b/gi,
             ""
         );
 
-        name = name.replace(/\s*\[.*?\]$/, "");
-        name = name.replace(/\s*\(.*?\)$/, "");
-        name = name.replace(/\s*\{.*?\}$/, "");
+        name = name.replace(
+            /\b(DTS|AAC(?:[\s\d\.]+)?|AC3|DDP(?:[\s\d\.]+)?|DD(?:[\s\d\.]+)?|TrueHD|FLAC|EAC3|MP3|OGG|WMA|Atmos|MIXED|KatmovieHD|TEPES|Dolby\s?Digital\s?Plus|Dolby|DTS-HD|MA|HDTV|ATVP|Remastered|mkvCinemas|PCM|DD|DDP|5\.1|5\s1|7\.1|7\s1|2\.0|2\s0)\b/gi,
+            ""
+        );
 
-        name = name.replace(/[\s]*[-~][\s]*[^\s]+.*$/, "");
+        name = name.replace(
+            /\b(Hindi|English|French|Spanish|German|Italian|Japanese|Korean|Dual\sAudio|Dubbed|Multi|ENG|HIN|SPA|FRE|GER|ITA|JAP|KOR)\b/gi,
+            ""
+        );
+
+        name = name.replace(
+            /\b(ESub|EngSub|Subbed|Subtitle|Subs|Sub|ESubs)\b/gi,
+            ""
+        );
+
+        name = name.replace(/\s*\[.*?\]/g, "");
+        name = name.replace(/\s*\(.*?\)/g, "");
+        name = name.replace(/\s*\{.*?\}/g, "");
+
+        name = name.replace(/[\s]*[-~][\s]*[^\s]+.*$/i, "");
         name = name.replace(/[\s]*by[\s]*[^\s]+.*$/i, "");
+        name = name.replace(/[\s]*\bMVGroup\b.*$/i, "");
 
         name = name.replace(/\s+/g, " ").trim();
+
+        if (year) {
+            name = `${name} (${year})`;
+        }
 
         return { title: name, year };
     }
