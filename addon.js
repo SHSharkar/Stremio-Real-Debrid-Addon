@@ -36,7 +36,7 @@ module.exports = function (config) {
 
     const manifest = {
         id: "community.realdebrid",
-        version: "0.0.2",
+        version: "1.0.0",
         catalogs: [
             {
                 type: "movie",
@@ -84,28 +84,35 @@ module.exports = function (config) {
     }
 
     function cleanFileName(filename) {
-        let name = filename.replace(
-            /\.(mkv|mp4|avi|wmv|flv|mov|webm|mpg|mpeg|iso|m4v|ts|m2ts|mts|m3u8|3gp|rmvb|vob|divx|xvid)$/i,
-            ""
-        );
-        name = name.replace(/[\._]/g, " ");
+        let name = filename;
 
+        name = name.replace(/\.[^/.]+$/, "");
+        name = name.replace(/[\._]/g, " ");
         name = name.replace(/S\d{1,2}[\s_.-]?E\d{1,2}(?:-\d{1,2})?/gi, "");
         name = name.replace(/Season[\s_.-]?\d{1,2}/gi, "");
         name = name.replace(/\b\d{1,2}x\d{1,2}\b/gi, "");
         name = name.replace(/Episode[\s_.-]?(\d{1,2})/gi, "");
 
-        let yearMatch = name.match(/\b(19|20)\d{2}\b/);
-        let year = yearMatch ? yearMatch[0] : null;
-        if (year) {
-            name = name.replace(/\b(19|20)\d{2}\b/, "");
+        let yearMatch = name.match(/(?:\(|\[|\{)?(19|20)\d{2}(?:\)|\]|\})?/);
+        let year = yearMatch ? yearMatch[1] : null;
+        if (yearMatch) {
+            name = name.replace(yearMatch[0], "");
         }
 
         name = name.replace(
-            /\b(1080p|720p|480p|2160p|4K|WEBRip|WEB-DL|BluRay|HDRip|BRRip|x264|x265|H\.?264|H\.?265|HEVC|DVDRip|DVDScr|CAM|TS|HDTS|R5|HDR|SDR|AAC|DDP\d+\.\d+|DDP|DD|DTS|Atmos|TrueHD|MP3|FLAC|EAC3|AC3|HQ|Hi10P|10bit|AVC|DivX|XviD|Subbed|Subtitle|Hindi|Dual Audio|Dubbed|Multi|ENG|HIN|SPA|FRE|GER|ITA|JAP|KOR|VOSTFR|AMZN|NF|HDCAM|HC|Rip|_)/gi,
+            /\b(1080p|720p|480p|2160p|4K|WEBRip|WEB[- ]?DL|BluRay|HDRip|BRRip|x264|x265|H\.?264|H\.?265|HEVC|DVDRip|DVDScr|CAM|TS|HDTS|R5|HDR|SDR|AAC|DDP\d*\.\d*|DDP|DD|DTS|Atmos|TrueHD|MP3|FLAC|EAC3|AC3|HQ|Hi10P|10bit|AVC|DivX|XviD|Subbed|Subtitle|ESub|EngSub|Hindi|Dual Audio|Dubbed|Multi|ENG|HIN|SPA|FRE|GER|ITA|JAP|KOR|VOSTFR|AMZN|NF|HDCAM|HC|Rip|WEB|HDR|DV|DVDRip|Blu-ray|Remux|BDRemux|BDRip|DVDRip|_)\b/gi,
             ""
         );
+
+        name = name.replace(/\s*\[.*?\]$/, "");
+        name = name.replace(/\s*\(.*?\)$/, "");
+        name = name.replace(/\s*\{.*?\}$/, "");
+
+        name = name.replace(/[\s]*[-~][\s]*[^\s]+.*$/, "");
+        name = name.replace(/[\s]*by[\s]*[^\s]+.*$/i, "");
+
         name = name.replace(/\s+/g, " ").trim();
+
         return { title: name, year };
     }
 
