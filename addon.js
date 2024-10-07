@@ -150,7 +150,7 @@ module.exports = function (config) {
             });
             return response.data;
         } catch (error) {
-            console.error("Fetch Torrents Error:", error.message);
+            //console.error("Fetch Torrents Error:", error.message);
             return [];
         }
     }
@@ -168,10 +168,10 @@ module.exports = function (config) {
             );
             return response.data;
         } catch (error) {
-            console.error(
-                `Fetch Torrent Info Error for Torrent ID ${torrentId}:`,
-                error.message
-            );
+            // console.error(
+            //     `Fetch Torrent Info Error for Torrent ID ${torrentId}:`,
+            //     error.message
+            // );
             return null;
         }
     }
@@ -216,7 +216,7 @@ module.exports = function (config) {
                 };
             }
         } catch (error) {
-            console.error("TMDb API Error:", error.message);
+            // console.error("TMDb API Error:", error.message);
         }
         return null;
     }
@@ -243,7 +243,7 @@ module.exports = function (config) {
                 };
             }
         } catch (error) {
-            console.error("OMDb API Error:", error.message);
+            //console.error("OMDb API Error:", error.message);
         }
         return null;
     }
@@ -326,7 +326,7 @@ module.exports = function (config) {
             );
             return response.data;
         } catch (error) {
-            console.error("Unrestrict Link Error:", error.message);
+            //console.error("Unrestrict Link Error:", error.message);
             return null;
         }
     }
@@ -428,7 +428,7 @@ module.exports = function (config) {
 
             return { metas };
         } catch (error) {
-            console.error("Catalog Handler Error:", error.message);
+            //console.error("Catalog Handler Error:", error.message);
             return { metas: [] };
         }
     });
@@ -524,7 +524,7 @@ module.exports = function (config) {
 
             return { meta };
         } catch (error) {
-            console.error("Meta Handler Error:", error.message);
+            // console.error("Meta Handler Error:", error.message);
             return { meta: null };
         }
     });
@@ -600,7 +600,7 @@ module.exports = function (config) {
                 return { streams: [] };
             }
         } catch (error) {
-            console.error("Stream Handler Error:", error.message);
+            // console.error("Stream Handler Error:", error.message);
             return { streams: [] };
         }
     });
