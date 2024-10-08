@@ -36,7 +36,7 @@ module.exports = function (config) {
 
     const manifest = {
         id: "community.realdebrid",
-        version: "1.0.0",
+        version: "1.0.1",
         catalogs: [
             {
                 type: "movie",
