@@ -150,7 +150,20 @@ module.exports = function (config) {
             });
             return response.data;
         } catch (error) {
-            //console.error("Fetch Torrents Error:", error.message);
+            return [];
+        }
+    }
+
+    async function fetchDownloads() {
+        if (!apiKey) return [];
+        try {
+            const response = await axios.get(`${API_BASE_URL}/downloads`, {
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                },
+            });
+            return response.data;
+        } catch (error) {
             return [];
         }
     }
@@ -168,10 +181,6 @@ module.exports = function (config) {
             );
             return response.data;
         } catch (error) {
-            // console.error(
-            //     `Fetch Torrent Info Error for Torrent ID ${torrentId}:`,
-            //     error.message
-            // );
             return null;
         }
     }
@@ -215,9 +224,7 @@ module.exports = function (config) {
                     data: response.data.results[0],
                 };
             }
-        } catch (error) {
-            // console.error("TMDb API Error:", error.message);
-        }
+        } catch (error) {}
         return null;
     }
 
@@ -242,9 +249,7 @@ module.exports = function (config) {
                     data: response.data,
                 };
             }
-        } catch (error) {
-            //console.error("OMDb API Error:", error.message);
-        }
+        } catch (error) {}
         return null;
     }
 
@@ -308,6 +313,52 @@ module.exports = function (config) {
         return episodes;
     }
 
+    function parseEpisodesFromDownloads(filename) {
+        const episodes = [];
+
+        const patterns = [
+            /S(\d{1,2})[\s_.-]?E(\d{1,2})/i,
+            /Season[\s_.-]?(\d{1,2})[\s_.-]?Episode[\s_.-]?(\d{1,2})/i,
+            /(\d{1,2})x(\d{1,2})/i,
+            /Episode[\s_.-]?(\d{1,2})/i,
+        ];
+
+        let season = null;
+        let episode = null;
+
+        for (const pattern of patterns) {
+            const match = filename.match(pattern);
+            if (match) {
+                if (match[1] && match[2]) {
+                    season = parseInt(match[1], 10);
+                    episode = parseInt(match[2], 10);
+                } else if (match[1]) {
+                    season = 1;
+                    episode = parseInt(match[1], 10);
+                }
+                break;
+            }
+        }
+
+        if (season !== null && episode !== null) {
+            episodes.push({
+                season,
+                episode,
+                title: filename,
+                index: 0,
+            });
+        } else {
+            episodes.push({
+                season: 1,
+                episode: 1,
+                title: filename,
+                index: 0,
+            });
+        }
+
+        return episodes;
+    }
+
     async function unrestrictLink(link) {
         if (!apiKey) return null;
         try {
@@ -326,7 +377,6 @@ module.exports = function (config) {
             );
             return response.data;
         } catch (error) {
-            //console.error("Unrestrict Link Error:", error.message);
             return null;
         }
     }
@@ -336,99 +386,157 @@ module.exports = function (config) {
 
         try {
             let torrents = await fetchTorrents();
-            if (!torrents || torrents.length === 0) {
-                return { metas: [] };
+            let downloads = await fetchDownloads();
+
+            if (!torrents) torrents = [];
+            if (!downloads) downloads = [];
+
+            let items = [];
+
+            if (torrents.length > 0) {
+                torrents = torrents.filter(
+                    (torrent) => torrent.status === "downloaded"
+                );
+
+                let filteredTorrents = torrents.filter((torrent) => {
+                    const isSeriesTorrent = isSeries(torrent.filename);
+                    return (
+                        (type === "movie" && !isSeriesTorrent) ||
+                        (type === "series" && isSeriesTorrent)
+                    );
+                });
+
+                if (extra && extra.search) {
+                    const search = extra.search.toLowerCase();
+                    filteredTorrents = filteredTorrents.filter((torrent) =>
+                        torrent.filename.toLowerCase().includes(search)
+                    );
+                }
+
+                items = items.concat(
+                    filteredTorrents.map((torrent) => ({
+                        source: "torrent",
+                        data: torrent,
+                    }))
+                );
             }
 
-            torrents = torrents.filter(
-                (torrent) => torrent.status === "downloaded"
-            );
+            if (downloads.length > 0) {
+                let filteredDownloads = downloads.filter((download) => {
+                    const isVideoFile = VIDEO_EXTENSIONS.includes(
+                        path.extname(download.filename).toLowerCase()
+                    );
+                    const isStreamable = download.streamable === 1;
+                    const isSeriesDownload = isSeries(download.filename);
+                    return (
+                        isVideoFile &&
+                        isStreamable &&
+                        ((type === "movie" && !isSeriesDownload) ||
+                            (type === "series" && isSeriesDownload))
+                    );
+                });
 
-            let filteredTorrents = torrents.filter((torrent) => {
-                const isSeriesTorrent = isSeries(torrent.filename);
-                return (
-                    (type === "movie" && !isSeriesTorrent) ||
-                    (type === "series" && isSeriesTorrent)
-                );
-            });
+                if (extra && extra.search) {
+                    const search = extra.search.toLowerCase();
+                    filteredDownloads = filteredDownloads.filter((download) =>
+                        download.filename.toLowerCase().includes(search)
+                    );
+                }
 
-            if (extra && extra.search) {
-                const search = extra.search.toLowerCase();
-                filteredTorrents = filteredTorrents.filter((torrent) =>
-                    torrent.filename.toLowerCase().includes(search)
+                items = items.concat(
+                    filteredDownloads.map((download) => ({
+                        source: "download",
+                        data: download,
+                    }))
                 );
             }
 
             const metas = [];
-            for (const torrent of filteredTorrents) {
-                const { title, year } = cleanFileName(torrent.filename);
+            for (const item of items) {
+                let title, year;
+                if (item.source === "torrent") {
+                    ({ title, year } = cleanFileName(item.data.filename));
+                } else if (item.source === "download") {
+                    ({ title, year } = cleanFileName(item.data.filename));
+                }
+
                 const metadata = await getMetadata(title, year, type);
+
+                let metaItem = {
+                    id: `rd:${encodeURIComponent(item.data.id)}:${item.source}`,
+                    type,
+                    name: title,
+                    poster: "",
+                    posterShape: "poster",
+                    description: "No description available",
+                    background: "",
+                };
 
                 if (metadata) {
                     if (
                         metadata.source === "tmdb" &&
                         metadata.data.poster_path
                     ) {
-                        metas.push({
-                            id: `rd:${encodeURIComponent(torrent.id)}`,
-                            type,
-                            name: metadata.data.title || metadata.data.name,
+                        metaItem = {
+                            ...metaItem,
+                            name:
+                                metadata.data.title ||
+                                metadata.data.name ||
+                                title,
                             poster: `https://image.tmdb.org/t/p/w500${metadata.data.poster_path}`,
-                            posterShape: "poster",
-                            description: metadata.data.overview,
+                            description: metadata.data.overview || "",
                             background: metadata.data.backdrop_path
                                 ? `https://image.tmdb.org/t/p/original${metadata.data.backdrop_path}`
-                                : "https://via.placeholder.com/800x450",
-                        });
+                                : "",
+                            genres: metadata.data.genres
+                                ? metadata.data.genres.map((g) => g.name)
+                                : [],
+                            releaseInfo: metadata.data.release_date || "",
+                            director: metadata.data.director || "",
+                            cast: metadata.data.cast
+                                ? metadata.data.cast.map((c) => c.name)
+                                : [],
+                            runtime: metadata.data.runtime
+                                ? `${metadata.data.runtime} min`
+                                : "",
+                            language: metadata.data.original_language || "",
+                            country: metadata.data.production_countries
+                                ? metadata.data.production_countries
+                                      .map((c) => c.name)
+                                      .join(", ")
+                                : "",
+                        };
                     } else if (
                         metadata.source === "omdb" &&
                         metadata.data.Poster &&
                         metadata.data.Poster !== "N/A"
                     ) {
-                        metas.push({
-                            id: `rd:${encodeURIComponent(torrent.id)}`,
-                            type,
-                            name: metadata.data.Title,
-                            poster: metadata.data.Poster,
-                            posterShape: "poster",
-                            description: metadata.data.Plot,
-                            background: metadata.data.Poster,
-                        });
-                    } else {
-                        const posterPath = metadata.data.poster_path
-                            ? `https://image.tmdb.org/t/p/w500${metadata.data.poster_path}`
-                            : "https://via.placeholder.com/150";
-
-                        metas.push({
-                            id: `rd:${encodeURIComponent(torrent.id)}`,
-                            type,
-                            name: metadata.data.title || metadata.data.name,
-                            poster: posterPath,
-                            posterShape: "poster",
-                            description:
-                                metadata.data.overview ||
-                                "No description available",
-                            background: metadata.data.backdrop_path
-                                ? `https://image.tmdb.org/t/p/original${metadata.data.backdrop_path}`
-                                : "https://via.placeholder.com/800x450",
-                        });
+                        metaItem = {
+                            ...metaItem,
+                            name: metadata.data.Title || title,
+                            poster: metadata.data.Poster || "",
+                            description: metadata.data.Plot || "",
+                            background: metadata.data.Poster || "",
+                            genres: metadata.data.Genre
+                                ? metadata.data.Genre.split(", ")
+                                : [],
+                            releaseInfo: metadata.data.Released || "",
+                            director: metadata.data.Director || "",
+                            cast: metadata.data.Actors
+                                ? metadata.data.Actors.split(", ")
+                                : [],
+                            runtime: metadata.data.Runtime || "",
+                            language: metadata.data.Language || "",
+                            country: metadata.data.Country || "",
+                        };
                     }
-                } else {
-                    metas.push({
-                        id: `rd:${encodeURIComponent(torrent.id)}`,
-                        type,
-                        name: title,
-                        poster: "https://via.placeholder.com/150",
-                        posterShape: "poster",
-                        description: "No description available",
-                        background: "https://via.placeholder.com/800x450",
-                    });
                 }
+
+                metas.push(metaItem);
             }
 
             return { metas };
         } catch (error) {
-            //console.error("Catalog Handler Error:", error.message);
             return { metas: [] };
         }
     });
@@ -437,94 +545,199 @@ module.exports = function (config) {
         const { type, id } = args;
 
         const idParts = id.split(":");
-        const torrentId = decodeURIComponent(idParts[1]);
-        const fileId = parseInt(idParts[2], 10);
-        const fileIndex = parseInt(idParts[3], 10);
+        const itemId = decodeURIComponent(idParts[1]);
+        const source = idParts[2];
 
         try {
-            const torrentInfo = await fetchTorrentInfo(torrentId);
-            if (!torrentInfo) {
-                return { meta: null };
-            }
+            let metaItem = null;
 
-            const { title, year } = cleanFileName(torrentInfo.filename);
-            const metadata = await getMetadata(title, year, type);
-
-            let meta;
-            if (metadata) {
-                if (metadata.source === "tmdb" && metadata.data.poster_path) {
-                    meta = {
-                        id,
-                        type,
-                        name: metadata.data.title || metadata.data.name,
-                        poster: `https://image.tmdb.org/t/p/w500${metadata.data.poster_path}`,
-                        posterShape: "poster",
-                        description: metadata.data.overview,
-                        background: metadata.data.backdrop_path
-                            ? `https://image.tmdb.org/t/p/original${metadata.data.backdrop_path}`
-                            : "https://via.placeholder.com/800x450",
-                        videos: [],
-                    };
-                } else if (
-                    metadata.source === "omdb" &&
-                    metadata.data.Poster &&
-                    metadata.data.Poster !== "N/A"
-                ) {
-                    meta = {
-                        id,
-                        type,
-                        name: metadata.data.Title,
-                        poster: metadata.data.Poster,
-                        posterShape: "poster",
-                        description: metadata.data.Plot,
-                        background: metadata.data.Poster,
-                        videos: [],
-                    };
-                } else {
-                    meta = {
-                        id,
-                        type,
-                        name: metadata.data.title || metadata.data.name,
-                        poster: metadata.data.poster_path
-                            ? `https://image.tmdb.org/t/p/w500${metadata.data.poster_path}`
-                            : "https://via.placeholder.com/150",
-                        posterShape: "poster",
-                        description:
-                            metadata.data.overview ||
-                            "No description available",
-                        background: metadata.data.backdrop_path
-                            ? `https://image.tmdb.org/t/p/original${metadata.data.backdrop_path}`
-                            : "https://via.placeholder.com/800x450",
-                        videos: [],
-                    };
+            if (source === "torrent") {
+                const torrentInfo = await fetchTorrentInfo(itemId);
+                if (!torrentInfo) {
+                    return { meta: null };
                 }
-            } else {
-                meta = {
+                const { title, year } = cleanFileName(torrentInfo.filename);
+                const metadata = await getMetadata(title, year, type);
+
+                metaItem = {
                     id,
                     type,
                     name: title,
-                    poster: "https://via.placeholder.com/150",
+                    poster: "",
                     posterShape: "poster",
                     description: "No description available",
-                    background: "https://via.placeholder.com/800x450",
+                    background: "",
                     videos: [],
                 };
+
+                if (metadata) {
+                    if (
+                        metadata.source === "tmdb" &&
+                        metadata.data.poster_path
+                    ) {
+                        metaItem = {
+                            ...metaItem,
+                            name:
+                                metadata.data.title ||
+                                metadata.data.name ||
+                                title,
+                            poster: `https://image.tmdb.org/t/p/w500${metadata.data.poster_path}`,
+                            description: metadata.data.overview || "",
+                            background: metadata.data.backdrop_path
+                                ? `https://image.tmdb.org/t/p/original${metadata.data.backdrop_path}`
+                                : "",
+                            genres: metadata.data.genres
+                                ? metadata.data.genres.map((g) => g.name)
+                                : [],
+                            releaseInfo: metadata.data.release_date || "",
+                            director: metadata.data.director || "",
+                            cast: metadata.data.cast
+                                ? metadata.data.cast.map((c) => c.name)
+                                : [],
+                            runtime: metadata.data.runtime
+                                ? `${metadata.data.runtime} min`
+                                : "",
+                            language: metadata.data.original_language || "",
+                            country: metadata.data.production_countries
+                                ? metadata.data.production_countries
+                                      .map((c) => c.name)
+                                      .join(", ")
+                                : "",
+                        };
+                    } else if (
+                        metadata.source === "omdb" &&
+                        metadata.data.Poster &&
+                        metadata.data.Poster !== "N/A"
+                    ) {
+                        metaItem = {
+                            ...metaItem,
+                            name: metadata.data.Title || title,
+                            poster: metadata.data.Poster || "",
+                            description: metadata.data.Plot || "",
+                            background: metadata.data.Poster || "",
+                            genres: metadata.data.Genre
+                                ? metadata.data.Genre.split(", ")
+                                : [],
+                            releaseInfo: metadata.data.Released || "",
+                            director: metadata.data.Director || "",
+                            cast: metadata.data.Actors
+                                ? metadata.data.Actors.split(", ")
+                                : [],
+                            runtime: metadata.data.Runtime || "",
+                            language: metadata.data.Language || "",
+                            country: metadata.data.Country || "",
+                        };
+                    }
+                }
+
+                if (type === "series") {
+                    const episodes = parseEpisodes(torrentInfo.files);
+                    metaItem.videos = episodes.map((episode) => ({
+                        id: `${id}:${episode.fileId}:${episode.index}`,
+                        title: `S${episode.season} E${episode.episode}`,
+                        season: episode.season,
+                        episode: episode.episode,
+                        released: new Date().toISOString(),
+                    }));
+                }
+            } else if (source === "download") {
+                const downloads = await fetchDownloads();
+                const downloadItem = downloads.find(
+                    (d) => d.id === itemId && d.streamable === 1
+                );
+                if (!downloadItem) {
+                    return { meta: null };
+                }
+                const { title, year } = cleanFileName(downloadItem.filename);
+                const metadata = await getMetadata(title, year, type);
+
+                metaItem = {
+                    id,
+                    type,
+                    name: title,
+                    poster: "",
+                    posterShape: "poster",
+                    description: "No description available",
+                    background: "",
+                    videos: [],
+                };
+
+                if (metadata) {
+                    if (
+                        metadata.source === "tmdb" &&
+                        metadata.data.poster_path
+                    ) {
+                        metaItem = {
+                            ...metaItem,
+                            name:
+                                metadata.data.title ||
+                                metadata.data.name ||
+                                title,
+                            poster: `https://image.tmdb.org/t/p/w500${metadata.data.poster_path}`,
+                            description: metadata.data.overview || "",
+                            background: metadata.data.backdrop_path
+                                ? `https://image.tmdb.org/t/p/original${metadata.data.backdrop_path}`
+                                : "",
+                            genres: metadata.data.genres
+                                ? metadata.data.genres.map((g) => g.name)
+                                : [],
+                            releaseInfo: metadata.data.release_date || "",
+                            director: metadata.data.director || "",
+                            cast: metadata.data.cast
+                                ? metadata.data.cast.map((c) => c.name)
+                                : [],
+                            runtime: metadata.data.runtime
+                                ? `${metadata.data.runtime} min`
+                                : "",
+                            language: metadata.data.original_language || "",
+                            country: metadata.data.production_countries
+                                ? metadata.data.production_countries
+                                      .map((c) => c.name)
+                                      .join(", ")
+                                : "",
+                        };
+                    } else if (
+                        metadata.source === "omdb" &&
+                        metadata.data.Poster &&
+                        metadata.data.Poster !== "N/A"
+                    ) {
+                        metaItem = {
+                            ...metaItem,
+                            name: metadata.data.Title || title,
+                            poster: metadata.data.Poster || "",
+                            description: metadata.data.Plot || "",
+                            background: metadata.data.Poster || "",
+                            genres: metadata.data.Genre
+                                ? metadata.data.Genre.split(", ")
+                                : [],
+                            releaseInfo: metadata.data.Released || "",
+                            director: metadata.data.Director || "",
+                            cast: metadata.data.Actors
+                                ? metadata.data.Actors.split(", ")
+                                : [],
+                            runtime: metadata.data.Runtime || "",
+                            language: metadata.data.Language || "",
+                            country: metadata.data.Country || "",
+                        };
+                    }
+                }
+
+                if (type === "series") {
+                    const episodes = parseEpisodesFromDownloads(
+                        downloadItem.filename
+                    );
+                    metaItem.videos = episodes.map((episode) => ({
+                        id: `${id}:${episode.index}`,
+                        title: `S${episode.season} E${episode.episode}`,
+                        season: episode.season,
+                        episode: episode.episode,
+                        released: new Date().toISOString(),
+                    }));
+                }
             }
 
-            if (type === "series") {
-                const episodes = parseEpisodes(torrentInfo.files);
-                meta.videos = episodes.map((episode) => ({
-                    id: `${id}:${episode.fileId}:${episode.index}`,
-                    title: `S${episode.season} E${episode.episode}`,
-                    season: episode.season,
-                    episode: episode.episode,
-                    released: new Date().toISOString(),
-                }));
-            }
-
-            return { meta };
+            return { meta: metaItem };
         } catch (error) {
-            // console.error("Meta Handler Error:", error.message);
             return { meta: null };
         }
     });
@@ -533,34 +746,60 @@ module.exports = function (config) {
         const { type, id } = args;
 
         const idParts = id.split(":");
-        const torrentId = decodeURIComponent(idParts[1]);
-        const fileId = parseInt(idParts[2], 10);
-        const fileIndex = parseInt(idParts[3], 10);
+        const itemId = decodeURIComponent(idParts[1]);
+        const source = idParts[2];
+        const fileId = idParts[3] ? parseInt(idParts[3], 10) : null;
+        const fileIndex = idParts[4] ? parseInt(idParts[4], 10) : null;
 
         try {
-            const torrentInfo = await fetchTorrentInfo(torrentId);
-            if (!torrentInfo) {
-                return { streams: [] };
-            }
-            const files = torrentInfo.files;
-            const links = torrentInfo.links;
+            if (source === "torrent") {
+                const torrentInfo = await fetchTorrentInfo(itemId);
+                if (!torrentInfo) {
+                    return { streams: [] };
+                }
+                const files = torrentInfo.files;
+                const links = torrentInfo.links;
 
-            if (type === "movie") {
-                if (files.length > 0 && links.length > 0) {
-                    const videoFiles = files.filter(
-                        (f) =>
-                            VIDEO_EXTENSIONS.includes(
-                                path.extname(f.path).toLowerCase()
-                            ) && !SAMPLE_FILE_REGEX.test(f.path)
-                    );
-                    if (videoFiles.length > 0) {
-                        const file = videoFiles[0];
-                        const linkIndex = files.indexOf(file);
-                        const link = links[linkIndex];
+                if (type === "movie") {
+                    if (files.length > 0 && links.length > 0) {
+                        const videoFiles = files.filter(
+                            (f) =>
+                                VIDEO_EXTENSIONS.includes(
+                                    path.extname(f.path).toLowerCase()
+                                ) && !SAMPLE_FILE_REGEX.test(f.path)
+                        );
+                        if (videoFiles.length > 0) {
+                            const file = videoFiles[0];
+                            const linkIndex = files.indexOf(file);
+                            const link = links[linkIndex];
 
-                        if (!file || !link) {
+                            if (!file || !link) {
+                                return { streams: [] };
+                            }
+
+                            const unrestricted = await unrestrictLink(link);
+                            if (!unrestricted) return { streams: [] };
+                            const stream = {
+                                title: file.path,
+                                url: encodeURI(unrestricted.download),
+                            };
+                            return { streams: [stream] };
+                        } else {
                             return { streams: [] };
                         }
+                    } else {
+                        return { streams: [] };
+                    }
+                } else if (type === "series") {
+                    if (
+                        !isNaN(fileId) &&
+                        !isNaN(fileIndex) &&
+                        files[fileIndex] &&
+                        files[fileIndex].id === fileId &&
+                        links[fileIndex]
+                    ) {
+                        const file = files[fileIndex];
+                        const link = links[fileIndex];
 
                         const unrestricted = await unrestrictLink(link);
                         if (!unrestricted) return { streams: [] };
@@ -575,22 +814,25 @@ module.exports = function (config) {
                 } else {
                     return { streams: [] };
                 }
-            } else if (type === "series") {
-                if (
-                    !isNaN(fileId) &&
-                    !isNaN(fileIndex) &&
-                    files[fileIndex] &&
-                    files[fileIndex].id === fileId &&
-                    links[fileIndex]
-                ) {
-                    const file = files[fileIndex];
-                    const link = links[fileIndex];
+            } else if (source === "download") {
+                const downloads = await fetchDownloads();
+                const downloadItem = downloads.find(
+                    (d) => d.id === itemId && d.streamable === 1
+                );
+                if (!downloadItem) {
+                    return { streams: [] };
+                }
 
-                    const unrestricted = await unrestrictLink(link);
-                    if (!unrestricted) return { streams: [] };
+                if (type === "movie") {
                     const stream = {
-                        title: file.path,
-                        url: encodeURI(unrestricted.download),
+                        title: downloadItem.filename,
+                        url: encodeURI(downloadItem.download),
+                    };
+                    return { streams: [stream] };
+                } else if (type === "series") {
+                    const stream = {
+                        title: downloadItem.filename,
+                        url: encodeURI(downloadItem.download),
                     };
                     return { streams: [stream] };
                 } else {
@@ -600,7 +842,6 @@ module.exports = function (config) {
                 return { streams: [] };
             }
         } catch (error) {
-            // console.error("Stream Handler Error:", error.message);
             return { streams: [] };
         }
     });
