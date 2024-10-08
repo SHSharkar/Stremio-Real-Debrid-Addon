@@ -25,13 +25,21 @@
         {
             "files": "*.md",
             "options": {
-                "parser": "markdown"
+                "parser": "markdown",
+                "tabWidth": 2,
+                "useTabs": false,
+                "proseWrap": "always",
+                "printWidth": 80
             }
         },
         {
             "files": "LICENSE",
             "options": {
-                "parser": "markdown"
+                "parser": "markdown",
+                "tabWidth": 2,
+                "useTabs": false,
+                "proseWrap": "always",
+                "printWidth": 80
             }
         },
         {
