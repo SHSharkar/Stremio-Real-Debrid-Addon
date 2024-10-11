@@ -36,7 +36,7 @@ module.exports = function (config) {
 
     const manifest = {
         id: "community.realdebrid",
-        version: "1.0.1",
+        version: "1.0.2",
         catalogs: [
             {
                 type: "movie",
@@ -93,6 +93,13 @@ module.exports = function (config) {
     };
 
     const builder = new addonBuilder(manifest);
+
+    const metadataCache = new Map();
+    const METADATA_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+    const torrentsCache = { data: null, timestamp: 0 };
+    const downloadsCache = { data: null, timestamp: 0 };
+    const RD_CACHE_TTL = 60 * 1000;
 
     function isSeries(filename) {
         const patterns = [
@@ -155,17 +162,35 @@ module.exports = function (config) {
 
         name = name.replace(/\s+/g, " ").trim();
 
-        return { title: name.trim(), year };
+        name = name
+            .split(" ")
+            .map(
+                (word) =>
+                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            )
+            .join(" ");
+
+        let displayName = year ? `${name} (${year})` : name;
+
+        return { title: displayName, searchTitle: name, year };
     }
 
     async function fetchTorrents() {
         if (!apiKey) return [];
+        if (
+            torrentsCache.data &&
+            Date.now() - torrentsCache.timestamp < RD_CACHE_TTL
+        ) {
+            return torrentsCache.data;
+        }
         try {
             const response = await axios.get(`${API_BASE_URL}/torrents`, {
                 headers: {
                     Authorization: `Bearer ${apiKey}`,
                 },
             });
+            torrentsCache.data = response.data;
+            torrentsCache.timestamp = Date.now();
             return response.data;
         } catch (error) {
             return [];
@@ -174,12 +199,20 @@ module.exports = function (config) {
 
     async function fetchDownloads() {
         if (!apiKey) return [];
+        if (
+            downloadsCache.data &&
+            Date.now() - downloadsCache.timestamp < RD_CACHE_TTL
+        ) {
+            return downloadsCache.data;
+        }
         try {
             const response = await axios.get(`${API_BASE_URL}/downloads`, {
                 headers: {
                     Authorization: `Bearer ${apiKey}`,
                 },
             });
+            downloadsCache.data = response.data;
+            downloadsCache.timestamp = Date.now();
             return response.data;
         } catch (error) {
             return [];
@@ -203,21 +236,49 @@ module.exports = function (config) {
         }
     }
 
-    async function getMetadata(title, year, type) {
+    async function getMetadata(title, type) {
+        let cacheKey = `${type}:${title}`;
+        let cachedData = metadataCache.get(cacheKey);
+        if (
+            cachedData &&
+            Date.now() - cachedData.timestamp < METADATA_CACHE_TTL
+        ) {
+            return cachedData.metadata;
+        }
+
         let metadata = null;
+        let searchTitle = title.toLowerCase();
 
         if (tmdbApiKey) {
-            metadata = await fetchTmdbMetadata(title, year, type);
+            metadata = await fetchTmdbMetadata(searchTitle, type);
         }
 
         if (omdbApiKey && !metadata) {
-            metadata = await fetchOmdbMetadata(title, year, type);
+            metadata = await fetchOmdbMetadata(searchTitle, type);
+        }
+
+        if (!metadata) {
+            const words = searchTitle.split(" ");
+            if (words.length > 1) {
+                words.pop();
+                searchTitle = words.join(" ");
+                if (tmdbApiKey) {
+                    metadata = await fetchTmdbMetadata(searchTitle, type);
+                }
+                if (omdbApiKey && !metadata) {
+                    metadata = await fetchOmdbMetadata(searchTitle, type);
+                }
+            }
+        }
+
+        if (metadata) {
+            metadataCache.set(cacheKey, { metadata, timestamp: Date.now() });
         }
 
         return metadata;
     }
 
-    async function fetchTmdbMetadata(title, year, type) {
+    async function fetchTmdbMetadata(title, type) {
         const tmdbBaseUrl = "https://api.themoviedb.org/3";
         const queryType = type === "movie" ? "movie" : "tv";
         try {
@@ -241,16 +302,13 @@ module.exports = function (config) {
         return null;
     }
 
-    async function fetchOmdbMetadata(title, year, type) {
+    async function fetchOmdbMetadata(title, type) {
         try {
             const params = {
                 apikey: omdbApiKey,
                 t: title,
                 type: type === "movie" ? "movie" : "series",
             };
-            if (year) {
-                params.y = year;
-            }
 
             const response = await axios.get("https://www.omdbapi.com/", {
                 params,
@@ -501,21 +559,28 @@ module.exports = function (config) {
                 return { metas: [] };
             }
 
-            const metas = [];
-            for (const item of items) {
-                let title, year;
+            const processItem = async (item, type) => {
+                let displayName, searchTitle, year;
                 if (item.source === "torrent") {
-                    ({ title, year } = cleanFileName(item.data.filename));
+                    ({
+                        title: displayName,
+                        searchTitle,
+                        year,
+                    } = cleanFileName(item.data.filename));
                 } else if (item.source === "download") {
-                    ({ title, year } = cleanFileName(item.data.filename));
+                    ({
+                        title: displayName,
+                        searchTitle,
+                        year,
+                    } = cleanFileName(item.data.filename));
                 }
 
-                const metadata = await getMetadata(title, year, type);
+                const metadata = await getMetadata(searchTitle, type);
 
                 let metaItem = {
                     id: `rd:${encodeURIComponent(item.data.id)}:${item.source}`,
                     type,
-                    name: title,
+                    name: displayName,
                     poster: "",
                     posterShape: "poster",
                     description: "",
@@ -532,7 +597,7 @@ module.exports = function (config) {
                             name:
                                 metadata.data.title ||
                                 metadata.data.name ||
-                                title,
+                                displayName,
                             poster: `https://image.tmdb.org/t/p/w500${metadata.data.poster_path}`,
                             description: metadata.data.overview || "",
                             background: metadata.data.backdrop_path
@@ -563,7 +628,7 @@ module.exports = function (config) {
                     ) {
                         metaItem = {
                             ...metaItem,
-                            name: metadata.data.Title || title,
+                            name: metadata.data.Title || displayName,
                             poster: metadata.data.Poster || "",
                             description: metadata.data.Plot || "",
                             background: metadata.data.Poster || "",
@@ -582,8 +647,11 @@ module.exports = function (config) {
                     }
                 }
 
-                metas.push(metaItem);
-            }
+                return metaItem;
+            };
+
+            const metasPromises = items.map((item) => processItem(item, type));
+            const metas = await Promise.all(metasPromises);
 
             return { metas };
         } catch (error) {
@@ -606,13 +674,17 @@ module.exports = function (config) {
                 if (!torrentInfo) {
                     return { meta: null };
                 }
-                const { title, year } = cleanFileName(torrentInfo.filename);
-                const metadata = await getMetadata(title, year, type);
+                const {
+                    title: displayName,
+                    searchTitle,
+                    year,
+                } = cleanFileName(torrentInfo.filename);
+                const metadata = await getMetadata(searchTitle, type);
 
                 metaItem = {
                     id,
                     type,
-                    name: title,
+                    name: displayName,
                     poster: "",
                     posterShape: "poster",
                     description: "",
@@ -630,7 +702,7 @@ module.exports = function (config) {
                             name:
                                 metadata.data.title ||
                                 metadata.data.name ||
-                                title,
+                                displayName,
                             poster: `https://image.tmdb.org/t/p/w500${metadata.data.poster_path}`,
                             description: metadata.data.overview || "",
                             background: metadata.data.backdrop_path
@@ -661,7 +733,7 @@ module.exports = function (config) {
                     ) {
                         metaItem = {
                             ...metaItem,
-                            name: metadata.data.Title || title,
+                            name: metadata.data.Title || displayName,
                             poster: metadata.data.Poster || "",
                             description: metadata.data.Plot || "",
                             background: metadata.data.Poster || "",
@@ -711,13 +783,17 @@ module.exports = function (config) {
                 if (!downloadItem) {
                     return { meta: null };
                 }
-                const { title, year } = cleanFileName(downloadItem.filename);
-                const metadata = await getMetadata(title, year, type);
+                const {
+                    title: displayName,
+                    searchTitle,
+                    year,
+                } = cleanFileName(downloadItem.filename);
+                const metadata = await getMetadata(searchTitle, type);
 
                 metaItem = {
                     id,
                     type,
-                    name: title,
+                    name: displayName,
                     poster: "",
                     posterShape: "poster",
                     description: "",
@@ -735,7 +811,7 @@ module.exports = function (config) {
                             name:
                                 metadata.data.title ||
                                 metadata.data.name ||
-                                title,
+                                displayName,
                             poster: `https://image.tmdb.org/t/p/w500${metadata.data.poster_path}`,
                             description: metadata.data.overview || "",
                             background: metadata.data.backdrop_path
@@ -766,7 +842,7 @@ module.exports = function (config) {
                     ) {
                         metaItem = {
                             ...metaItem,
-                            name: metadata.data.Title || title,
+                            name: metadata.data.Title || displayName,
                             poster: metadata.data.Poster || "",
                             description: metadata.data.Plot || "",
                             background: metadata.data.Poster || "",
