@@ -40,8 +40,8 @@ module.exports = function (config) {
         catalogs: [
             {
                 type: "movie",
-                id: "realdebrid_movies",
-                name: "Real Debrid Movies",
+                id: "realdebrid_movies_torrents",
+                name: "Real Debrid Movies (Torrents)",
                 extra: [
                     {
                         name: "search",
@@ -51,8 +51,30 @@ module.exports = function (config) {
             },
             {
                 type: "series",
-                id: "realdebrid_series",
-                name: "Real Debrid Series",
+                id: "realdebrid_series_torrents",
+                name: "Real Debrid Series (Torrents)",
+                extra: [
+                    {
+                        name: "search",
+                        isRequired: false,
+                    },
+                ],
+            },
+            {
+                type: "movie",
+                id: "realdebrid_movies_downloads",
+                name: "Real Debrid Movies (Downloads)",
+                extra: [
+                    {
+                        name: "search",
+                        isRequired: false,
+                    },
+                ],
+            },
+            {
+                type: "series",
+                id: "realdebrid_series_downloads",
+                name: "Real Debrid Series (Downloads)",
                 extra: [
                     {
                         name: "search",
@@ -133,11 +155,7 @@ module.exports = function (config) {
 
         name = name.replace(/\s+/g, " ").trim();
 
-        if (year) {
-            name = `${name} (${year})`;
-        }
-
-        return { title: name, year };
+        return { title: name.trim(), year };
     }
 
     async function fetchTorrents() {
@@ -196,10 +214,6 @@ module.exports = function (config) {
             metadata = await fetchOmdbMetadata(title, year, type);
         }
 
-        if (tmdbApiKey && !metadata) {
-            metadata = await fetchTmdbMetadata(title, null, type);
-        }
-
         return metadata;
     }
 
@@ -213,7 +227,6 @@ module.exports = function (config) {
                     params: {
                         api_key: tmdbApiKey,
                         query: title,
-                        year: year || undefined,
                         include_adult: false,
                     },
                 }
@@ -381,22 +394,49 @@ module.exports = function (config) {
         }
     }
 
+    function formatFileSize(bytes) {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        const optionsTime = {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+        };
+        const optionsDate = {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+        };
+        const timePart = date.toLocaleString("en-US", optionsTime);
+        const datePart = date.toLocaleDateString("en-US", optionsDate);
+        return `${timePart} - ${datePart}`;
+    }
+
     builder.defineCatalogHandler(async (args) => {
-        const { type, extra } = args;
+        const { type, id, extra } = args;
 
         try {
-            let torrents = await fetchTorrents();
-            let downloads = await fetchDownloads();
-
-            if (!torrents) torrents = [];
-            if (!downloads) downloads = [];
-
             let items = [];
 
-            if (torrents.length > 0) {
+            if (
+                id === "realdebrid_movies_torrents" ||
+                id === "realdebrid_series_torrents"
+            ) {
+                let torrents = await fetchTorrents();
+                if (!torrents) torrents = [];
+
                 torrents = torrents.filter(
                     (torrent) => torrent.status === "downloaded"
                 );
+
+                torrents.sort((a, b) => new Date(b.added) - new Date(a.added));
 
                 let filteredTorrents = torrents.filter((torrent) => {
                     const isSeriesTorrent = isSeries(torrent.filename);
@@ -419,9 +459,17 @@ module.exports = function (config) {
                         data: torrent,
                     }))
                 );
-            }
+            } else if (
+                id === "realdebrid_movies_downloads" ||
+                id === "realdebrid_series_downloads"
+            ) {
+                let downloads = await fetchDownloads();
+                if (!downloads) downloads = [];
 
-            if (downloads.length > 0) {
+                downloads.sort(
+                    (a, b) => new Date(b.generated) - new Date(a.generated)
+                );
+
                 let filteredDownloads = downloads.filter((download) => {
                     const isVideoFile = VIDEO_EXTENSIONS.includes(
                         path.extname(download.filename).toLowerCase()
@@ -449,6 +497,8 @@ module.exports = function (config) {
                         data: download,
                     }))
                 );
+            } else {
+                return { metas: [] };
             }
 
             const metas = [];
@@ -468,7 +518,7 @@ module.exports = function (config) {
                     name: title,
                     poster: "",
                     posterShape: "poster",
-                    description: "No description available",
+                    description: "",
                     background: "",
                 };
 
@@ -565,7 +615,7 @@ module.exports = function (config) {
                     name: title,
                     poster: "",
                     posterShape: "poster",
-                    description: "No description available",
+                    description: "",
                     background: "",
                     videos: [],
                 };
@@ -629,6 +679,19 @@ module.exports = function (config) {
                         };
                     }
                 }
+
+                const hostInfo = `File downloaded from: ${torrentInfo.host}`;
+                const fileSize = `File size: ${formatFileSize(torrentInfo.bytes)}`;
+                const addedDate = `Downloaded on: ${formatDate(torrentInfo.added)}`;
+
+                metaItem.description = [
+                    metaItem.description,
+                    hostInfo,
+                    fileSize,
+                    addedDate,
+                ]
+                    .filter(Boolean)
+                    .join(", ");
 
                 if (type === "series") {
                     const episodes = parseEpisodes(torrentInfo.files);
@@ -657,7 +720,7 @@ module.exports = function (config) {
                     name: title,
                     poster: "",
                     posterShape: "poster",
-                    description: "No description available",
+                    description: "",
                     background: "",
                     videos: [],
                 };
@@ -721,6 +784,19 @@ module.exports = function (config) {
                         };
                     }
                 }
+
+                const hostInfo = `File downloaded from: ${downloadItem.host}`;
+                const fileSize = `File size: ${formatFileSize(downloadItem.filesize)}`;
+                const generatedDate = `Downloaded on: ${formatDate(downloadItem.generated)}`;
+
+                metaItem.description = [
+                    metaItem.description,
+                    hostInfo,
+                    fileSize,
+                    generatedDate,
+                ]
+                    .filter(Boolean)
+                    .join(", ");
 
                 if (type === "series") {
                     const episodes = parseEpisodesFromDownloads(
