@@ -38,7 +38,9 @@ app.post("/install", (req, res) => {
         "base64"
     );
 
-    const addonUrl = `${req.protocol}://${req.get("host")}/${configEncoded}/manifest.json`;
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+
+    const addonUrl = `${protocol}://${req.get("host")}/${configEncoded}/manifest.json`;
     const addonInstallUrlNoProtocol = `${req.get("host")}/${configEncoded}/manifest.json`;
 
     res.send(`
