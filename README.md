@@ -5,6 +5,10 @@ Stream your Real Debrid files in Stremio.
 **Disclaimer**: This addon is not official and is not affiliated with the
 [Real Debrid](https://real-debrid.com/) website.
 
+![Configure addon page](screenshot/configure-real-debrid-addon.png)
+
+![Downloads catalog](screenshot/downloads-catalog.png)
+
 ## Table of Contents
 
 - [Stremio Real Debrid Addon](#stremio-real-debrid-addon)
