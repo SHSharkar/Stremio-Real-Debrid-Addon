@@ -167,6 +167,16 @@
                         name="tmdbApiKey"
                         class="block w-full rounded border-0 py-1.5 text-base font-medium text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6"
                     />
+                    <p class="mt-2 text-sm text-gray-500">
+                        Get your TMDb API Key from
+                        <a
+                            href="https://www.themoviedb.org/settings/api"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="font-medium text-blue-500 hover:text-blue-700"
+                            >here</a
+                        >.
+                    </p>
                 </div>
                 <div class="mb-4">
                     <label
@@ -180,6 +190,16 @@
                         name="omdbApiKey"
                         class="block w-full rounded border-0 py-1.5 text-base font-medium text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6"
                     />
+                    <p class="mt-2 text-sm text-gray-500">
+                        Get your OMDb API Key from
+                        <a
+                            href="https://www.omdbapi.com/apikey.aspx"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="font-medium text-blue-500 hover:text-blue-700"
+                            >here</a
+                        >.
+                    </p>
                 </div>
                 <div class="flex items-center justify-between">
                     <button
@@ -205,6 +225,20 @@
                     website.
                 </p>
             </div>
+
+            <footer class="mt-4 text-center text-sm font-medium text-gray-600">
+                &copy; <span id="current-year"></span>
+                <a
+                    href="https://devwz.com"
+                    target="_blank"
+                    class="font-semibold text-blue-500 hover:text-blue-700"
+                    >DEV Wizard</a
+                >. All rights reserved. Version {{VERSION}}
+            </footer>
+            <script>
+                document.getElementById("current-year").textContent =
+                    new Date().getFullYear();
+            </script>
         </div>
     </body>
 </html>
