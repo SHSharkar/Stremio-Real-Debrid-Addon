@@ -28,7 +28,7 @@ const VIDEO_EXTENSIONS = [
     ".xvid",
 ];
 
-const SAMPLE_FILE_REGEX = /sample/i;
+const SAMPLE_FILE_REGEX = /sample|trailer|promo/i;
 
 module.exports = function (config) {
     const apiKey = config.apiKey;
@@ -41,7 +41,6 @@ module.exports = function (config) {
         name: "Real Debrid",
         description:
             "Stream your Real Debrid files in Stremio. Disclaimer: This addon is not official and is not affiliated with the Real Debrid website.",
-
         resources: ["catalog", "meta", "stream"],
         types: ["movie", "series"],
         catalogs: [
@@ -110,71 +109,58 @@ module.exports = function (config) {
             /\b\d{1,2}[\s_,.\-]?[xX][\s_,.\-]?\d{1,2}\b/i,
             /Episode[\s_,.\-]?\d{1,2}/i,
         ];
-
         return patterns.some((pattern) => pattern.test(filename));
     }
 
     function cleanFileName(filename) {
         let name = filename;
-
         name = name.replace(/\.[^/.]+$/, "");
-
         name = name.replace(/[._]/g, " ");
-
-        let yearMatch = name.match(
-            /(?:\(|\[|\{)?((?:19|20)\d{2})(?:\)|\]|\})?/
-        );
-        let year = yearMatch ? yearMatch[1] : null;
-        if (yearMatch) {
-            name = name.replace(yearMatch[0], "");
+        const patterns = [
+            /([\w\s]+?)[\s]*[\(\[\{]?(\d{4})[\)\]\}]?[\s]*[\-\.]?/i,
+            /([\w\s]+?)[\s]*[\-\.][\s]*(\d{4})/i,
+        ];
+        let match = null;
+        for (const pattern of patterns) {
+            match = name.match(pattern);
+            if (match) {
+                break;
+            }
         }
-
-        name = name.replace(/S\d{1,2}[\s.-]?E\d{1,2}(?:-\d{1,2})?/gi, "");
-        name = name.replace(/Season[\s.-]?\d{1,2}/gi, "");
-        name = name.replace(/\b\d{1,2}x\d{1,2}\b/gi, "");
-        name = name.replace(/Episode[\s.-]?(\d{1,2})/gi, "");
-
-        name = name.replace(
-            /\b(1080p|720p|480p|2160p|4K|2K|3D|iMAX|AMZN|WEBRip|WEB[- ]?DL|BluRay|HDRip|BRRip|BDRip|BDRemux|Remux|DVDRip|DVDScr|CAM|TS|HDTS|R5|HDR|SDR|HDCAM|HC|Rip|WEB|HDR|DV|HEVC|x264|x265|H\.?264|H\.?265|AVC|DivX|XviD|10bit|Hi10P)\b/gi,
-            ""
+        let title = name;
+        let year = null;
+        if (match) {
+            title = match[1].trim();
+            year = match[2];
+        }
+        const knownPatterns = [
+            /^(19|20)\d{2}$/,
+            /^(1080p|720p|480p|2160p|4K|DS4K|ESP|2K|3D|iMAX|AMZN|WEBRip|WEB[- ]?DL|BluRay|HDRip|BRRip|BDRip|BDRemux|Remux|DVDRip|DVDScr|CAM|TS|HDTS|R5|HDR|SDR|HDCAM|HC|Rip|WEB|HDR|DV|HEVC|x264|x265|H\.?264|H\.?265|AVC|DivX|XviD|10bit|Hi10P)$/i,
+            /^(DTS|AAC(?:[\s\d\.]+)?|AC3|DDP(?:[\s\d\.]+)?|DD(?:[\s\d\.]+)?|TrueHD|FLAC|EAC3|MP3|OGG|WMA|Atmos|MIXED|Dolby\s?Digital\s?Plus|Dolby|DTS-HD|MA|HDTV|Remastered|PCM|DD|DDP|5\.1|5\.1CH|7\.1|7\.1CH|2\.0|2\.0CH)$/i,
+            /^(Hindi|English|French|Spanish|German|Italian|Japanese|Korean|Dual[\s]?Audio|Dub|Dubbed|Multi|ENG|HIN|SPA|FRE|GER|ITA|JAP|KOR|Urdu)$/i,
+            /^(ESub|EngSub|Subbed|Subtitle|Subs|Sub|ESubs)$/i,
+            /^(mkvCinemas|MVGroup|SP3LL|GOPIHD|KatmovieHD|CHIOS|Musafirboy)$/i,
+            /^S\d{1,2}[\s.-]?E\d{1,2}(?:-\d{1,2})?$/i,
+            /^Season[\s.-]?\d{1,2}$/i,
+            /^\d{1,2}x\d{1,2}$/i,
+            /^Episode[\s.-]?(\d{1,2})$/i,
+            /^[\[\(\{].*[\]\)\}]$/,
+            /^[\-~]\s*\w+/,
+        ];
+        let parts = title.split(/\s+/);
+        parts = parts.filter(
+            (part) => !knownPatterns.some((pattern) => pattern.test(part))
         );
-
-        name = name.replace(
-            /\b(DTS|AAC(?:[\s\d\.]+)?|AC3|DDP(?:[\s\d\.]+)?|DD(?:[\s\d\.]+)?|TrueHD|FLAC|EAC3|MP3|OGG|WMA|Atmos|MIXED|KatmovieHD|TEPES|Dolby\s?Digital\s?Plus|Dolby|DTS-HD|MA|HDTV|ATVP|Remastered|mkvCinemas|PCM|DD|DDP|5\.1|5\s1|7\.1|7\s1|2\.0|2\s0)\b/gi,
-            ""
-        );
-
-        name = name.replace(
-            /\b(Hindi|English|French|Spanish|German|Italian|Japanese|Korean|Dual\sAudio|Dubbed|Multi|ENG|HIN|SPA|FRE|GER|ITA|JAP|KOR)\b/gi,
-            ""
-        );
-
-        name = name.replace(
-            /\b(ESub|EngSub|Subbed|Subtitle|Subs|Sub|ESubs)\b/gi,
-            ""
-        );
-
-        name = name.replace(/\s*\[.*?\]/g, "");
-        name = name.replace(/\s*\(.*?\)/g, "");
-        name = name.replace(/\s*\{.*?\}/g, "");
-
-        name = name.replace(/[\s]*[-~][\s]*[^\s]+.*$/i, "");
-        name = name.replace(/[\s]*by[\s]*[^\s]+.*$/i, "");
-        name = name.replace(/[\s]*\bMVGroup\b.*$/i, "");
-
-        name = name.replace(/\s+/g, " ").trim();
-
-        name = name
+        title = parts.join(" ");
+        title = title
             .split(" ")
             .map(
                 (word) =>
                     word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
             )
             .join(" ");
-
-        let displayName = year ? `${name} (${year})` : name;
-
-        return { title: displayName, searchTitle: name, year };
+        let displayName = year ? `${title} (${year})` : title;
+        return { title: displayName, searchTitle: title, year };
     }
 
     async function fetchTorrents() {
@@ -238,8 +224,8 @@ module.exports = function (config) {
         }
     }
 
-    async function getMetadata(title, type) {
-        let cacheKey = `${type}:${title}`;
+    async function getMetadata(title, type, year) {
+        let cacheKey = `${type}:${title}:${year || ""}`;
         let cachedData = metadataCache.get(cacheKey);
         if (
             cachedData &&
@@ -247,51 +233,53 @@ module.exports = function (config) {
         ) {
             return cachedData.metadata;
         }
-
         let metadata = null;
         let searchTitle = title.toLowerCase();
-
         if (tmdbApiKey) {
-            metadata = await fetchTmdbMetadata(searchTitle, type);
+            metadata = await fetchTmdbMetadata(searchTitle, type, year);
         }
-
         if (omdbApiKey && !metadata) {
-            metadata = await fetchOmdbMetadata(searchTitle, type);
+            metadata = await fetchOmdbMetadata(searchTitle, type, year);
         }
-
         if (!metadata) {
             const words = searchTitle.split(" ");
             if (words.length > 1) {
                 words.pop();
                 searchTitle = words.join(" ");
                 if (tmdbApiKey) {
-                    metadata = await fetchTmdbMetadata(searchTitle, type);
+                    metadata = await fetchTmdbMetadata(searchTitle, type, year);
                 }
                 if (omdbApiKey && !metadata) {
-                    metadata = await fetchOmdbMetadata(searchTitle, type);
+                    metadata = await fetchOmdbMetadata(searchTitle, type, year);
                 }
             }
         }
-
         if (metadata) {
             metadataCache.set(cacheKey, { metadata, timestamp: Date.now() });
         }
-
         return metadata;
     }
 
-    async function fetchTmdbMetadata(title, type) {
+    async function fetchTmdbMetadata(title, type, year) {
         const tmdbBaseUrl = "https://api.themoviedb.org/3";
         const queryType = type === "movie" ? "movie" : "tv";
         try {
+            const params = {
+                api_key: tmdbApiKey,
+                query: title,
+                include_adult: false,
+            };
+            if (year) {
+                if (type === "movie") {
+                    params.year = year;
+                } else {
+                    params.first_air_date_year = year;
+                }
+            }
             const response = await axios.get(
                 `${tmdbBaseUrl}/search/${queryType}`,
                 {
-                    params: {
-                        api_key: tmdbApiKey,
-                        query: title,
-                        include_adult: false,
-                    },
+                    params: params,
                 }
             );
             if (response.data.results && response.data.results.length > 0) {
@@ -304,18 +292,19 @@ module.exports = function (config) {
         return null;
     }
 
-    async function fetchOmdbMetadata(title, type) {
+    async function fetchOmdbMetadata(title, type, year) {
         try {
             const params = {
                 apikey: omdbApiKey,
                 t: title,
                 type: type === "movie" ? "movie" : "series",
             };
-
+            if (year) {
+                params.y = year;
+            }
             const response = await axios.get("https://www.omdbapi.com/", {
                 params,
             });
-
             if (response.data && response.data.Response !== "False") {
                 return {
                     source: "omdb",
@@ -328,28 +317,23 @@ module.exports = function (config) {
 
     function parseEpisodes(files) {
         const episodes = [];
-
         files.forEach((file, index) => {
             const ext = path.extname(file.path).toLowerCase();
             const filename = path.basename(file.path);
-
             if (
                 !VIDEO_EXTENSIONS.includes(ext) ||
                 SAMPLE_FILE_REGEX.test(filename)
             ) {
                 return;
             }
-
             const patterns = [
                 /S(\d{1,2})[\s_.-]?E(\d{1,2})/i,
                 /Season[\s_.-]?(\d{1,2})[\s_.-]?Episode[\s_.-]?(\d{1,2})/i,
                 /(\d{1,2})x(\d{1,2})/i,
                 /Episode[\s_.-]?(\d{1,2})/i,
             ];
-
             let season = null;
             let episode = null;
-
             for (const pattern of patterns) {
                 const match = filename.match(pattern);
                 if (match) {
@@ -363,7 +347,6 @@ module.exports = function (config) {
                     break;
                 }
             }
-
             if (season !== null && episode !== null) {
                 episodes.push({
                     season,
@@ -382,23 +365,19 @@ module.exports = function (config) {
                 });
             }
         });
-
         return episodes;
     }
 
     function parseEpisodesFromDownloads(filename) {
         const episodes = [];
-
         const patterns = [
             /S(\d{1,2})[\s_.-]?E(\d{1,2})/i,
             /Season[\s_.-]?(\d{1,2})[\s_.-]?Episode[\s_.-]?(\d{1,2})/i,
             /(\d{1,2})x(\d{1,2})/i,
             /Episode[\s_.-]?(\d{1,2})/i,
         ];
-
         let season = null;
         let episode = null;
-
         for (const pattern of patterns) {
             const match = filename.match(pattern);
             if (match) {
@@ -412,7 +391,6 @@ module.exports = function (config) {
                 break;
             }
         }
-
         if (season !== null && episode !== null) {
             episodes.push({
                 season,
@@ -428,7 +406,6 @@ module.exports = function (config) {
                 index: 0,
             });
         }
-
         return episodes;
     }
 
@@ -437,7 +414,6 @@ module.exports = function (config) {
         try {
             const data = new URLSearchParams();
             data.append("link", link);
-
             const response = await axios.post(
                 `${API_BASE_URL}/unrestrict/link`,
                 data,
@@ -481,23 +457,18 @@ module.exports = function (config) {
 
     builder.defineCatalogHandler(async (args) => {
         const { type, id, extra } = args;
-
         try {
             let items = [];
-
             if (
                 id === "realdebrid_movies_torrents" ||
                 id === "realdebrid_series_torrents"
             ) {
                 let torrents = await fetchTorrents();
                 if (!torrents) torrents = [];
-
                 torrents = torrents.filter(
                     (torrent) => torrent.status === "downloaded"
                 );
-
                 torrents.sort((a, b) => new Date(b.added) - new Date(a.added));
-
                 let filteredTorrents = torrents.filter((torrent) => {
                     const isSeriesTorrent = isSeries(torrent.filename);
                     return (
@@ -505,14 +476,12 @@ module.exports = function (config) {
                         (type === "series" && isSeriesTorrent)
                     );
                 });
-
                 if (extra && extra.search) {
                     const search = extra.search.toLowerCase();
                     filteredTorrents = filteredTorrents.filter((torrent) =>
                         torrent.filename.toLowerCase().includes(search)
                     );
                 }
-
                 items = items.concat(
                     filteredTorrents.map((torrent) => ({
                         source: "torrent",
@@ -525,11 +494,9 @@ module.exports = function (config) {
             ) {
                 let downloads = await fetchDownloads();
                 if (!downloads) downloads = [];
-
                 downloads.sort(
                     (a, b) => new Date(b.generated) - new Date(a.generated)
                 );
-
                 let filteredDownloads = downloads.filter((download) => {
                     const isVideoFile = VIDEO_EXTENSIONS.includes(
                         path.extname(download.filename).toLowerCase()
@@ -543,14 +510,12 @@ module.exports = function (config) {
                             (type === "series" && isSeriesDownload))
                     );
                 });
-
                 if (extra && extra.search) {
                     const search = extra.search.toLowerCase();
                     filteredDownloads = filteredDownloads.filter((download) =>
                         download.filename.toLowerCase().includes(search)
                     );
                 }
-
                 items = items.concat(
                     filteredDownloads.map((download) => ({
                         source: "download",
@@ -560,7 +525,6 @@ module.exports = function (config) {
             } else {
                 return { metas: [] };
             }
-
             const processItem = async (item, type) => {
                 let displayName, searchTitle, year;
                 if (item.source === "torrent") {
@@ -576,9 +540,7 @@ module.exports = function (config) {
                         year,
                     } = cleanFileName(item.data.filename));
                 }
-
-                const metadata = await getMetadata(searchTitle, type);
-
+                const metadata = await getMetadata(searchTitle, type, year);
                 let metaItem = {
                     id: `rd:${encodeURIComponent(item.data.id)}:${item.source}`,
                     type,
@@ -588,7 +550,6 @@ module.exports = function (config) {
                     description: "",
                     background: "",
                 };
-
                 if (metadata) {
                     if (
                         metadata.source === "tmdb" &&
@@ -648,13 +609,10 @@ module.exports = function (config) {
                         };
                     }
                 }
-
                 return metaItem;
             };
-
             const metasPromises = items.map((item) => processItem(item, type));
             const metas = await Promise.all(metasPromises);
-
             return { metas };
         } catch (error) {
             return { metas: [] };
@@ -663,14 +621,11 @@ module.exports = function (config) {
 
     builder.defineMetaHandler(async (args) => {
         const { type, id } = args;
-
         const idParts = id.split(":");
         const itemId = decodeURIComponent(idParts[1]);
         const source = idParts[2];
-
         try {
             let metaItem = null;
-
             if (source === "torrent") {
                 const torrentInfo = await fetchTorrentInfo(itemId);
                 if (!torrentInfo) {
@@ -681,8 +636,7 @@ module.exports = function (config) {
                     searchTitle,
                     year,
                 } = cleanFileName(torrentInfo.filename);
-                const metadata = await getMetadata(searchTitle, type);
-
+                const metadata = await getMetadata(searchTitle, type, year);
                 metaItem = {
                     id,
                     type,
@@ -693,7 +647,6 @@ module.exports = function (config) {
                     background: "",
                     videos: [],
                 };
-
                 if (metadata) {
                     if (
                         metadata.source === "tmdb" &&
@@ -753,11 +706,9 @@ module.exports = function (config) {
                         };
                     }
                 }
-
                 const hostInfo = `File downloaded from: ${torrentInfo.host}`;
                 const fileSize = `File size: ${formatFileSize(torrentInfo.bytes)}`;
                 const addedDate = `Downloaded on: ${formatDate(torrentInfo.added)}`;
-
                 metaItem.description = [
                     metaItem.description,
                     hostInfo,
@@ -766,7 +717,6 @@ module.exports = function (config) {
                 ]
                     .filter(Boolean)
                     .join(", ");
-
                 if (type === "series") {
                     const episodes = parseEpisodes(torrentInfo.files);
                     metaItem.videos = episodes.map((episode) => ({
@@ -790,8 +740,7 @@ module.exports = function (config) {
                     searchTitle,
                     year,
                 } = cleanFileName(downloadItem.filename);
-                const metadata = await getMetadata(searchTitle, type);
-
+                const metadata = await getMetadata(searchTitle, type, year);
                 metaItem = {
                     id,
                     type,
@@ -802,7 +751,6 @@ module.exports = function (config) {
                     background: "",
                     videos: [],
                 };
-
                 if (metadata) {
                     if (
                         metadata.source === "tmdb" &&
@@ -862,11 +810,13 @@ module.exports = function (config) {
                         };
                     }
                 }
-
                 const hostInfo = `File downloaded from: ${downloadItem.host}`;
-                const fileSize = `File size: ${formatFileSize(downloadItem.filesize)}`;
-                const generatedDate = `Downloaded on: ${formatDate(downloadItem.generated)}`;
-
+                const fileSize = `File size: ${formatFileSize(
+                    downloadItem.filesize || downloadItem.bytes
+                )}`;
+                const generatedDate = `Downloaded on: ${formatDate(
+                    downloadItem.generated
+                )}`;
                 metaItem.description = [
                     metaItem.description,
                     hostInfo,
@@ -875,7 +825,6 @@ module.exports = function (config) {
                 ]
                     .filter(Boolean)
                     .join(", ");
-
                 if (type === "series") {
                     const episodes = parseEpisodesFromDownloads(
                         downloadItem.filename
@@ -889,7 +838,6 @@ module.exports = function (config) {
                     }));
                 }
             }
-
             return { meta: metaItem };
         } catch (error) {
             return { meta: null };
@@ -898,13 +846,11 @@ module.exports = function (config) {
 
     builder.defineStreamHandler(async (args) => {
         const { type, id } = args;
-
         const idParts = id.split(":");
         const itemId = decodeURIComponent(idParts[1]);
         const source = idParts[2];
         const fileId = idParts[3] ? parseInt(idParts[3], 10) : null;
         const fileIndex = idParts[4] ? parseInt(idParts[4], 10) : null;
-
         try {
             if (source === "torrent") {
                 const torrentInfo = await fetchTorrentInfo(itemId);
@@ -913,7 +859,6 @@ module.exports = function (config) {
                 }
                 const files = torrentInfo.files;
                 const links = torrentInfo.links;
-
                 if (type === "movie") {
                     if (files.length > 0 && links.length > 0) {
                         const videoFiles = files.filter(
@@ -926,11 +871,9 @@ module.exports = function (config) {
                             const file = videoFiles[0];
                             const linkIndex = files.indexOf(file);
                             const link = links[linkIndex];
-
                             if (!file || !link) {
                                 return { streams: [] };
                             }
-
                             const unrestricted = await unrestrictLink(link);
                             if (!unrestricted) return { streams: [] };
                             const stream = {
@@ -954,7 +897,6 @@ module.exports = function (config) {
                     ) {
                         const file = files[fileIndex];
                         const link = links[fileIndex];
-
                         const unrestricted = await unrestrictLink(link);
                         if (!unrestricted) return { streams: [] };
                         const stream = {
@@ -976,17 +918,24 @@ module.exports = function (config) {
                 if (!downloadItem) {
                     return { streams: [] };
                 }
-
                 if (type === "movie") {
+                    const unrestricted = await unrestrictLink(
+                        downloadItem.download
+                    );
+                    if (!unrestricted) return { streams: [] };
                     const stream = {
                         title: downloadItem.filename,
-                        url: encodeURI(downloadItem.download),
+                        url: encodeURI(unrestricted.download),
                     };
                     return { streams: [stream] };
                 } else if (type === "series") {
+                    const unrestricted = await unrestrictLink(
+                        downloadItem.download
+                    );
+                    if (!unrestricted) return { streams: [] };
                     const stream = {
                         title: downloadItem.filename,
-                        url: encodeURI(downloadItem.download),
+                        url: encodeURI(unrestricted.download),
                     };
                     return { streams: [stream] };
                 } else {
