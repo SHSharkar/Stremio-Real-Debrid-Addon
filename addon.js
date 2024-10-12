@@ -1,6 +1,7 @@
 const { addonBuilder } = require("stremio-addon-sdk");
 const axios = require("axios");
 const path = require("path");
+const pkg = require("./package.json");
 
 const API_BASE_URL = "https://api.real-debrid.com/rest/1.0";
 
@@ -36,12 +37,18 @@ module.exports = function (config) {
 
     const manifest = {
         id: "community.realdebrid",
-        version: "1.0.4",
+        version: pkg.version,
+        name: "Real Debrid",
+        description:
+            "Stream your Real Debrid files in Stremio. Disclaimer: This addon is not official and is not affiliated with the Real Debrid website.",
+
+        resources: ["catalog", "meta", "stream"],
+        types: ["movie", "series"],
         catalogs: [
             {
                 type: "movie",
                 id: "realdebrid_movies_torrents",
-                name: "Real Debrid Movies (Torrents)",
+                name: "RD Movies (Torrents)",
                 extra: [
                     {
                         name: "search",
@@ -52,7 +59,7 @@ module.exports = function (config) {
             {
                 type: "series",
                 id: "realdebrid_series_torrents",
-                name: "Real Debrid Series (Torrents)",
+                name: "RD Series (Torrents)",
                 extra: [
                     {
                         name: "search",
@@ -63,7 +70,7 @@ module.exports = function (config) {
             {
                 type: "movie",
                 id: "realdebrid_movies_downloads",
-                name: "Real Debrid Movies (Downloads)",
+                name: "RD Movies (Downloads)",
                 extra: [
                     {
                         name: "search",
@@ -74,7 +81,7 @@ module.exports = function (config) {
             {
                 type: "series",
                 id: "realdebrid_series_downloads",
-                name: "Real Debrid Series (Downloads)",
+                name: "RD Series (Downloads)",
                 extra: [
                     {
                         name: "search",
@@ -83,11 +90,6 @@ module.exports = function (config) {
                 ],
             },
         ],
-        resources: ["catalog", "meta", "stream"],
-        types: ["movie", "series"],
-        name: "Real Debrid",
-        description:
-            "Stream your Real Debrid files in Stremio. Disclaimer: This addon is not official and is not affiliated with the Real Debrid website.",
         idPrefixes: ["rd:"],
         logo: "https://i.ibb.co/JHmv8p6/Real-Debrid-Icon.png",
     };
