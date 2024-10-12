@@ -5,6 +5,8 @@ const { getRouter } = require("stremio-addon-sdk");
 const addonBuilder = require("./addon");
 const app = express();
 const path = require("path");
+const fs = require("fs");
+const pkg = require("./package.json");
 
 app.set("trust proxy", true);
 
@@ -17,7 +19,17 @@ app.get("/", (req, res) => {
 });
 
 app.get("/configure", (req, res) => {
-    res.sendFile(path.join(__dirname, "configure.html"));
+    fs.readFile(path.join(__dirname, "configure.html"), "utf8", (err, data) => {
+        if (err) {
+            res.status(500).send("Error loading configure.html");
+        } else {
+            const currentYear = new Date().getFullYear();
+            const updatedData = data
+                .replace(/{{VERSION}}/g, pkg.version)
+                .replace(/{{CURRENT_YEAR}}/g, currentYear);
+            res.send(updatedData);
+        }
+    });
 });
 
 app.post("/install", (req, res) => {
@@ -39,9 +51,10 @@ app.post("/install", (req, res) => {
     );
 
     const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+    const host = req.headers["x-forwarded-host"] || req.get("host");
 
-    const addonUrl = `${protocol}://${req.get("host")}/${configEncoded}/manifest.json`;
-    const addonInstallUrlNoProtocol = `${req.get("host")}/${configEncoded}/manifest.json`;
+    const addonUrl = `${protocol}://${host}/${configEncoded}/manifest.json`;
+    const addonInstallUrlNoProtocol = `${host}/${configEncoded}/manifest.json`;
 
     res.send(`
         <!DOCTYPE html>
@@ -69,6 +82,9 @@ app.post("/install", (req, res) => {
                     >
                     website.
                 </p>
+                <footer class="mt-4 text-center text-sm font-medium text-gray-600">
+                    &copy; ${new Date().getFullYear()} <a href="https://devwz.com" target="_blank" class="font-semibold text-blue-500 hover:text-blue-700">DEV Wizard</a>. All rights reserved. Version ${pkg.version}
+                </footer>
             </div>
         </body>
         </html>
