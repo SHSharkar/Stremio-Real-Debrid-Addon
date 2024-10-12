@@ -1,6 +1,6 @@
 {
     "name": "stremio-addon-realdebrid",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "Stream your Real Debrid files in Stremio",
     "scripts": {
         "start": "node server.js"
