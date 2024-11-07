@@ -1,0 +1,10 @@
+services:
+    realdebrid-addon:
+        build: .
+        image: stremio-realdebrid-addon
+        container_name: realdebrid-addon
+        ports:
+            - "62316:62316"
+        environment:
+            PORT: 62316
+        restart: unless-stopped
