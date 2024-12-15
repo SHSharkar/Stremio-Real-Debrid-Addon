@@ -90,7 +90,7 @@ module.exports = function (config) {
             },
         ],
         idPrefixes: ["rd:"],
-        logo: "https://i.ibb.co/JHmv8p6/Real-Debrid-Icon.png",
+        logo: "https://i.postimg.cc/HW9291C2/mstile-150x150.png",
     };
 
     const builder = new addonBuilder(manifest);
