@@ -63,11 +63,11 @@ app.post("/install", (req, res) => {
             <title>Install Real Debrid Addon</title>
             <link href="/dist/main.css" rel="stylesheet" />
         </head>
-        <body class="bg-gray-100 flex items-center justify-center min-h-screen">
-            <div class="bg-white p-8 rounded shadow-md w-full max-w-md">
+        <body class="bg-white flex items-center justify-center min-h-screen">
+            <div class="border-2 border-gray-300 bg-gradient-to-r from-gray-200 to-gray-300 p-8 rounded w-full max-w-md">
                 <h1 class="text-2xl font-bold mb-4">Install Real Debrid Addon</h1>
                 <p class="mb-4 font-medium">Click the link below to install the addon in Stremio:</p>
-                <a href="stremio://${addonInstallUrlNoProtocol}" class="rounded bg-indigo-600 px-2.5 py-1.5 text-lg font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Install Addon</a>
+                <a href="stremio://${addonInstallUrlNoProtocol}" class="rounded bg-indigo-600 px-2.5 py-1.5 text-lg font-semibold text-white shadow-md hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Install Addon</a>
                 <p class="mt-4 font-medium">Or add the following URL in Stremio:</p>
                 <p class="bg-gray-100 p-3 rounded break-all overflow-wrap-anywhere overflow-x-auto my-2 font-mono text-sm">${addonUrl}</p>
                 <p class="text-sm font-semibold text-orange-600 mt-4">
