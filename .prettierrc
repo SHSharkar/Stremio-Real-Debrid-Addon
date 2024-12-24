@@ -12,7 +12,7 @@
     "semi": true,
     "singleQuote": false,
     "tabWidth": 4,
-    "trailingComma": "es5",
+    "trailingComma": "all",
     "useTabs": false,
     "vueIndentScriptAndStyle": false,
     "overrides": [
