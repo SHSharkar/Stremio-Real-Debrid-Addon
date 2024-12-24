@@ -73,7 +73,7 @@ module.exports = function (config) {
             },
         ],
         idPrefixes: ["rd:"],
-        logo: "https://raw.githubusercontent.com/SHSharkar/Stremio-Real-Debrid-Addon/refs/heads/main/icon/logo.png",
+        logo: "https://raw.githubusercontent.com/SHSharkar/Stremio-Real-Debrid-Addon/refs/heads/main/icon/logo.jpg",
     };
 
     const builder = new addonBuilder(manifest);
