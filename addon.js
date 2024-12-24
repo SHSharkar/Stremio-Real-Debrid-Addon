@@ -3,6 +3,9 @@ const axios = require("axios");
 const path = require("path");
 const pkg = require("./package.json");
 
+const METADATA_CACHE_TTL = 86400000;
+const RD_CACHE_TTL = 60000;
+
 const API_BASE_URL = "https://api.real-debrid.com/rest/1.0";
 
 const VIDEO_EXTENSIONS = [
@@ -48,59 +51,36 @@ module.exports = function (config) {
                 type: "movie",
                 id: "realdebrid_movies_torrents",
                 name: "RD Movies (Torrents)",
-                extra: [
-                    {
-                        name: "search",
-                        isRequired: false,
-                    },
-                ],
+                extra: [{ name: "search", isRequired: false }],
             },
             {
                 type: "series",
                 id: "realdebrid_series_torrents",
                 name: "RD Series (Torrents)",
-                extra: [
-                    {
-                        name: "search",
-                        isRequired: false,
-                    },
-                ],
+                extra: [{ name: "search", isRequired: false }],
             },
             {
                 type: "movie",
                 id: "realdebrid_movies_downloads",
                 name: "RD Movies (Downloads)",
-                extra: [
-                    {
-                        name: "search",
-                        isRequired: false,
-                    },
-                ],
+                extra: [{ name: "search", isRequired: false }],
             },
             {
                 type: "series",
                 id: "realdebrid_series_downloads",
                 name: "RD Series (Downloads)",
-                extra: [
-                    {
-                        name: "search",
-                        isRequired: false,
-                    },
-                ],
+                extra: [{ name: "search", isRequired: false }],
             },
         ],
         idPrefixes: ["rd:"],
-        logo: "https://i.postimg.cc/HW9291C2/mstile-150x150.png",
+        logo: "https://raw.githubusercontent.com/SHSharkar/Stremio-Real-Debrid-Addon/refs/heads/main/icon/logo.png",
     };
 
     const builder = new addonBuilder(manifest);
 
     const metadataCache = new Map();
-    const METADATA_CACHE_TTL = 24 * 60 * 60 * 1000;
-
     const torrentsCache = { data: null, timestamp: 0 };
     const downloadsCache = { data: null, timestamp: 0 };
-    const RD_CACHE_TTL = 60 * 1000;
 
     function isSeries(filename) {
         const patterns = [
@@ -110,6 +90,15 @@ module.exports = function (config) {
             /Episode[\s_,.\-]?\d{1,2}/i,
         ];
         return patterns.some((pattern) => pattern.test(filename));
+    }
+
+    function isVideoFile(filePath) {
+        if (!filePath) return false;
+        const ext = path.extname(filePath).toLowerCase();
+        if (!VIDEO_EXTENSIONS.includes(ext)) return false;
+        const base = path.basename(filePath);
+        if (SAMPLE_FILE_REGEX.test(base)) return false;
+        return true;
     }
 
     function cleanFileName(filename) {
@@ -123,9 +112,7 @@ module.exports = function (config) {
         let match = null;
         for (const pattern of patterns) {
             match = name.match(pattern);
-            if (match) {
-                break;
-            }
+            if (match) break;
         }
         let title = name;
         let year = null;
@@ -133,6 +120,7 @@ module.exports = function (config) {
             title = match[1].trim();
             year = match[2];
         }
+
         const knownPatterns = [
             /^(19|20)\d{2}$/,
             /^(1080p|720p|480p|2160p|4K|DS4K|ESP|2K|3D|iMAX|AMZN|WEBRip|WEB[- ]?DL|BluRay|HDRip|BRRip|BDRip|BDRemux|Remux|DVDRip|DVDScr|CAM|TS|HDTS|R5|HDR|SDR|HDCAM|HC|Rip|WEB|HDR|DV|HEVC|x264|x265|H\.?264|H\.?265|AVC|DivX|XviD|10bit|Hi10P)$/i,
@@ -149,17 +137,15 @@ module.exports = function (config) {
         ];
         let parts = title.split(/\s+/);
         parts = parts.filter(
-            (part) => !knownPatterns.some((pattern) => pattern.test(part))
+            (part) => !knownPatterns.some((regex) => regex.test(part)),
         );
-        title = parts.join(" ");
-        title = title
-            .split(" ")
+        title = parts
             .map(
                 (word) =>
-                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
             )
             .join(" ");
-        let displayName = year ? `${title} (${year})` : title;
+        const displayName = year ? `${title} (${year})` : title;
         return { title: displayName, searchTitle: title, year };
     }
 
@@ -173,10 +159,9 @@ module.exports = function (config) {
         }
         try {
             const response = await axios.get(`${API_BASE_URL}/torrents`, {
-                headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                },
+                headers: { Authorization: `Bearer ${apiKey}` },
             });
+            if (!response.data) return [];
             torrentsCache.data = response.data;
             torrentsCache.timestamp = Date.now();
             return response.data;
@@ -195,10 +180,9 @@ module.exports = function (config) {
         }
         try {
             const response = await axios.get(`${API_BASE_URL}/downloads`, {
-                headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                },
+                headers: { Authorization: `Bearer ${apiKey}` },
             });
+            if (!response.data) return [];
             downloadsCache.data = response.data;
             downloadsCache.timestamp = Date.now();
             return response.data;
@@ -213,20 +197,86 @@ module.exports = function (config) {
             const response = await axios.get(
                 `${API_BASE_URL}/torrents/info/${torrentId}`,
                 {
-                    headers: {
-                        Authorization: `Bearer ${apiKey}`,
-                    },
-                }
+                    headers: { Authorization: `Bearer ${apiKey}` },
+                },
             );
+            if (!response.data) return null;
             return response.data;
         } catch (error) {
             return null;
         }
     }
 
+    async function unrestrictLink(link) {
+        if (!apiKey || !link) return null;
+        try {
+            const data = new URLSearchParams();
+            data.append("link", link);
+            const response = await axios.post(
+                `${API_BASE_URL}/unrestrict/link`,
+                data,
+                {
+                    headers: {
+                        Authorization: `Bearer ${apiKey}`,
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                },
+            );
+            if (!response.data) return null;
+            return response.data;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    async function fetchTmdbMetadata(searchTitle, type, year) {
+        const base = "https://api.themoviedb.org/3";
+        const queryType = type === "movie" ? "movie" : "tv";
+        try {
+            const params = {
+                api_key: tmdbApiKey,
+                query: searchTitle,
+                include_adult: false,
+            };
+            if (year) {
+                if (type === "movie") params.year = year;
+                else params.first_air_date_year = year;
+            }
+            const response = await axios.get(`${base}/search/${queryType}`, {
+                params,
+            });
+            if (
+                response.data &&
+                response.data.results &&
+                response.data.results.length > 0
+            ) {
+                return { source: "tmdb", data: response.data.results[0] };
+            }
+        } catch (err) {}
+        return null;
+    }
+
+    async function fetchOmdbMetadata(searchTitle, type, year) {
+        try {
+            const params = {
+                apikey: omdbApiKey,
+                t: searchTitle,
+                type: type === "movie" ? "movie" : "series",
+            };
+            if (year) params.y = year;
+            const response = await axios.get("https://www.omdbapi.com/", {
+                params,
+            });
+            if (response.data && response.data.Response !== "False") {
+                return { source: "omdb", data: response.data };
+            }
+        } catch (err) {}
+        return null;
+    }
+
     async function getMetadata(title, type, year) {
-        let cacheKey = `${type}:${title}:${year || ""}`;
-        let cachedData = metadataCache.get(cacheKey);
+        const cacheKey = `${type}:${title}:${year || ""}`;
+        const cachedData = metadataCache.get(cacheKey);
         if (
             cachedData &&
             Date.now() - cachedData.timestamp < METADATA_CACHE_TTL
@@ -238,7 +288,7 @@ module.exports = function (config) {
         if (tmdbApiKey) {
             metadata = await fetchTmdbMetadata(searchTitle, type, year);
         }
-        if (omdbApiKey && !metadata) {
+        if (!metadata && omdbApiKey) {
             metadata = await fetchOmdbMetadata(searchTitle, type, year);
         }
         if (!metadata) {
@@ -249,7 +299,7 @@ module.exports = function (config) {
                 if (tmdbApiKey) {
                     metadata = await fetchTmdbMetadata(searchTitle, type, year);
                 }
-                if (omdbApiKey && !metadata) {
+                if (!metadata && omdbApiKey) {
                     metadata = await fetchOmdbMetadata(searchTitle, type, year);
                 }
             }
@@ -260,72 +310,39 @@ module.exports = function (config) {
         return metadata;
     }
 
-    async function fetchTmdbMetadata(title, type, year) {
-        const tmdbBaseUrl = "https://api.themoviedb.org/3";
-        const queryType = type === "movie" ? "movie" : "tv";
-        try {
-            const params = {
-                api_key: tmdbApiKey,
-                query: title,
-                include_adult: false,
-            };
-            if (year) {
-                if (type === "movie") {
-                    params.year = year;
-                } else {
-                    params.first_air_date_year = year;
-                }
-            }
-            const response = await axios.get(
-                `${tmdbBaseUrl}/search/${queryType}`,
-                {
-                    params: params,
-                }
-            );
-            if (response.data.results && response.data.results.length > 0) {
-                return {
-                    source: "tmdb",
-                    data: response.data.results[0],
-                };
-            }
-        } catch (error) {}
-        return null;
+    function formatFileSize(bytes) {
+        if (!bytes || bytes <= 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
     }
 
-    async function fetchOmdbMetadata(title, type, year) {
-        try {
-            const params = {
-                apikey: omdbApiKey,
-                t: title,
-                type: type === "movie" ? "movie" : "series",
-            };
-            if (year) {
-                params.y = year;
-            }
-            const response = await axios.get("https://www.omdbapi.com/", {
-                params,
-            });
-            if (response.data && response.data.Response !== "False") {
-                return {
-                    source: "omdb",
-                    data: response.data,
-                };
-            }
-        } catch (error) {}
-        return null;
+    function formatDate(dateString) {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return "";
+        const optionsTime = {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+        };
+        const optionsDate = {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+        };
+        const timePart = date.toLocaleString("en-US", optionsTime);
+        const datePart = date.toLocaleDateString("en-US", optionsDate);
+        return `${timePart} - ${datePart}`;
     }
 
     function parseEpisodes(files) {
         const episodes = [];
+        if (!files || files.length === 0) return episodes;
         files.forEach((file, index) => {
-            const ext = path.extname(file.path).toLowerCase();
+            if (!isVideoFile(file.path)) return;
             const filename = path.basename(file.path);
-            if (
-                !VIDEO_EXTENSIONS.includes(ext) ||
-                SAMPLE_FILE_REGEX.test(filename)
-            ) {
-                return;
-            }
             const patterns = [
                 /S(\d{1,2})[\s_.-]?E(\d{1,2})/i,
                 /Season[\s_.-]?(\d{1,2})[\s_.-]?Episode[\s_.-]?(\d{1,2})/i,
@@ -370,6 +387,7 @@ module.exports = function (config) {
 
     function parseEpisodesFromDownloads(filename) {
         const episodes = [];
+        if (!filename) return episodes;
         const patterns = [
             /S(\d{1,2})[\s_.-]?E(\d{1,2})/i,
             /Season[\s_.-]?(\d{1,2})[\s_.-]?Episode[\s_.-]?(\d{1,2})/i,
@@ -409,52 +427,6 @@ module.exports = function (config) {
         return episodes;
     }
 
-    async function unrestrictLink(link) {
-        if (!apiKey) return null;
-        try {
-            const data = new URLSearchParams();
-            data.append("link", link);
-            const response = await axios.post(
-                `${API_BASE_URL}/unrestrict/link`,
-                data,
-                {
-                    headers: {
-                        Authorization: `Bearer ${apiKey}`,
-                        "Content-Type": "application/x-www-form-urlencoded",
-                    },
-                }
-            );
-            return response.data;
-        } catch (error) {
-            return null;
-        }
-    }
-
-    function formatFileSize(bytes) {
-        if (bytes === 0) return "0 Bytes";
-        const k = 1024;
-        const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-    }
-
-    function formatDate(dateString) {
-        const date = new Date(dateString);
-        const optionsTime = {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-        };
-        const optionsDate = {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-        };
-        const timePart = date.toLocaleString("en-US", optionsTime);
-        const datePart = date.toLocaleDateString("en-US", optionsDate);
-        return `${timePart} - ${datePart}`;
-    }
-
     builder.defineCatalogHandler(async (args) => {
         const { type, id, extra } = args;
         try {
@@ -465,28 +437,26 @@ module.exports = function (config) {
             ) {
                 let torrents = await fetchTorrents();
                 if (!torrents) torrents = [];
-                torrents = torrents.filter(
-                    (torrent) => torrent.status === "downloaded"
-                );
+                torrents = torrents.filter((t) => t.status === "downloaded");
                 torrents.sort((a, b) => new Date(b.added) - new Date(a.added));
-                let filteredTorrents = torrents.filter((torrent) => {
-                    const isSeriesTorrent = isSeries(torrent.filename);
+                let filteredTorrents = torrents.filter((t) => {
+                    const seriesFlag = isSeries(t.filename);
                     return (
-                        (type === "movie" && !isSeriesTorrent) ||
-                        (type === "series" && isSeriesTorrent)
+                        (type === "movie" && !seriesFlag) ||
+                        (type === "series" && seriesFlag)
                     );
                 });
                 if (extra && extra.search) {
-                    const search = extra.search.toLowerCase();
-                    filteredTorrents = filteredTorrents.filter((torrent) =>
-                        torrent.filename.toLowerCase().includes(search)
+                    const searchText = extra.search.toLowerCase();
+                    filteredTorrents = filteredTorrents.filter((t) =>
+                        t.filename.toLowerCase().includes(searchText),
                     );
                 }
                 items = items.concat(
-                    filteredTorrents.map((torrent) => ({
+                    filteredTorrents.map((t) => ({
                         source: "torrent",
-                        data: torrent,
-                    }))
+                        data: t,
+                    })),
                 );
             } else if (
                 id === "realdebrid_movies_downloads" ||
@@ -495,51 +465,44 @@ module.exports = function (config) {
                 let downloads = await fetchDownloads();
                 if (!downloads) downloads = [];
                 downloads.sort(
-                    (a, b) => new Date(b.generated) - new Date(a.generated)
+                    (a, b) => new Date(b.generated) - new Date(a.generated),
                 );
-                let filteredDownloads = downloads.filter((download) => {
-                    const isVideoFile = VIDEO_EXTENSIONS.includes(
-                        path.extname(download.filename).toLowerCase()
-                    );
-                    const isStreamable = download.streamable === 1;
-                    const isSeriesDownload = isSeries(download.filename);
+                let filteredDownloads = downloads.filter((d) => {
+                    if (!d.filename) return false;
+                    const ext = path.extname(d.filename).toLowerCase();
+                    const isStreamable = d.streamable === 1;
+                    const isSeriesDownload = isSeries(d.filename);
                     return (
-                        isVideoFile &&
+                        VIDEO_EXTENSIONS.includes(ext) &&
+                        !SAMPLE_FILE_REGEX.test(d.filename) &&
                         isStreamable &&
                         ((type === "movie" && !isSeriesDownload) ||
                             (type === "series" && isSeriesDownload))
                     );
                 });
                 if (extra && extra.search) {
-                    const search = extra.search.toLowerCase();
-                    filteredDownloads = filteredDownloads.filter((download) =>
-                        download.filename.toLowerCase().includes(search)
+                    const searchText = extra.search.toLowerCase();
+                    filteredDownloads = filteredDownloads.filter((d) =>
+                        d.filename.toLowerCase().includes(searchText),
                     );
                 }
                 items = items.concat(
-                    filteredDownloads.map((download) => ({
+                    filteredDownloads.map((d) => ({
                         source: "download",
-                        data: download,
-                    }))
+                        data: d,
+                    })),
                 );
             } else {
                 return { metas: [] };
             }
-            const processItem = async (item, type) => {
-                let displayName, searchTitle, year;
-                if (item.source === "torrent") {
-                    ({
-                        title: displayName,
-                        searchTitle,
-                        year,
-                    } = cleanFileName(item.data.filename));
-                } else if (item.source === "download") {
-                    ({
-                        title: displayName,
-                        searchTitle,
-                        year,
-                    } = cleanFileName(item.data.filename));
-                }
+
+            async function processItem(item) {
+                const { filename } = item.data;
+                const {
+                    title: displayName,
+                    searchTitle,
+                    year,
+                } = cleanFileName(filename);
                 const metadata = await getMetadata(searchTitle, type, year);
                 let metaItem = {
                     id: `rd:${encodeURIComponent(item.data.id)}:${item.source}`,
@@ -610,9 +573,11 @@ module.exports = function (config) {
                     }
                 }
                 return metaItem;
-            };
-            const metasPromises = items.map((item) => processItem(item, type));
-            const metas = await Promise.all(metasPromises);
+            }
+
+            const metas = await Promise.all(
+                items.map((item) => processItem(item)),
+            );
             return { metas };
         } catch (error) {
             return { metas: [] };
@@ -621,9 +586,9 @@ module.exports = function (config) {
 
     builder.defineMetaHandler(async (args) => {
         const { type, id } = args;
-        const idParts = id.split(":");
-        const itemId = decodeURIComponent(idParts[1]);
-        const source = idParts[2];
+        const parts = id.split(":");
+        const itemId = decodeURIComponent(parts[1]);
+        const source = parts[2];
         try {
             let metaItem = null;
             if (source === "torrent") {
@@ -719,18 +684,21 @@ module.exports = function (config) {
                     .join(", ");
                 if (type === "series") {
                     const episodes = parseEpisodes(torrentInfo.files);
-                    metaItem.videos = episodes.map((episode) => ({
-                        id: `${id}:${episode.fileId}:${episode.index}`,
-                        title: `S${episode.season} E${episode.episode}`,
-                        season: episode.season,
-                        episode: episode.episode,
+                    metaItem.videos = episodes.map((ep) => ({
+                        id: `${id}:${ep.fileId}:${ep.index}`,
+                        title: `S${ep.season} E${ep.episode}`,
+                        season: ep.season,
+                        episode: ep.episode,
                         released: new Date().toISOString(),
                     }));
                 }
             } else if (source === "download") {
                 const downloads = await fetchDownloads();
+                if (!downloads) {
+                    return { meta: null };
+                }
                 const downloadItem = downloads.find(
-                    (d) => d.id === itemId && d.streamable === 1
+                    (d) => d.id === itemId && d.streamable === 1,
                 );
                 if (!downloadItem) {
                     return { meta: null };
@@ -812,10 +780,10 @@ module.exports = function (config) {
                 }
                 const hostInfo = `File downloaded from: ${downloadItem.host}`;
                 const fileSize = `File size: ${formatFileSize(
-                    downloadItem.filesize || downloadItem.bytes
+                    downloadItem.filesize || downloadItem.bytes,
                 )}`;
                 const generatedDate = `Downloaded on: ${formatDate(
-                    downloadItem.generated
+                    downloadItem.generated,
                 )}`;
                 metaItem.description = [
                     metaItem.description,
@@ -827,13 +795,13 @@ module.exports = function (config) {
                     .join(", ");
                 if (type === "series") {
                     const episodes = parseEpisodesFromDownloads(
-                        downloadItem.filename
+                        downloadItem.filename,
                     );
-                    metaItem.videos = episodes.map((episode) => ({
-                        id: `${id}:${episode.index}`,
-                        title: `S${episode.season} E${episode.episode}`,
-                        season: episode.season,
-                        episode: episode.episode,
+                    metaItem.videos = episodes.map((ep) => ({
+                        id: `${id}:${ep.index}`,
+                        title: `S${ep.season} E${ep.episode}`,
+                        season: ep.season,
+                        episode: ep.episode,
                         released: new Date().toISOString(),
                     }));
                 }
@@ -857,39 +825,43 @@ module.exports = function (config) {
                 if (!torrentInfo) {
                     return { streams: [] };
                 }
-                const files = torrentInfo.files;
-                const links = torrentInfo.links;
+                const { files, links } = torrentInfo;
+                if (
+                    !files ||
+                    !links ||
+                    files.length === 0 ||
+                    links.length === 0
+                ) {
+                    return { streams: [] };
+                }
                 if (type === "movie") {
-                    if (files.length > 0 && links.length > 0) {
-                        const videoFiles = files.filter(
-                            (f) =>
-                                VIDEO_EXTENSIONS.includes(
-                                    path.extname(f.path).toLowerCase()
-                                ) && !SAMPLE_FILE_REGEX.test(f.path)
-                        );
-                        if (videoFiles.length > 0) {
-                            const file = videoFiles[0];
-                            const linkIndex = files.indexOf(file);
-                            const link = links[linkIndex];
-                            if (!file || !link) {
-                                return { streams: [] };
-                            }
-                            const unrestricted = await unrestrictLink(link);
-                            if (!unrestricted) return { streams: [] };
-                            const stream = {
-                                title: file.path,
-                                url: encodeURI(unrestricted.download),
-                            };
-                            return { streams: [stream] };
-                        } else {
-                            return { streams: [] };
-                        }
-                    } else {
+                    const videoFiles = files.filter((f) => isVideoFile(f.path));
+                    if (videoFiles.length === 0) {
                         return { streams: [] };
                     }
+                    const file = videoFiles[0];
+                    const linkIndex = files.indexOf(file);
+                    const link = links[linkIndex];
+                    if (!file || !link) {
+                        return { streams: [] };
+                    }
+                    const unrestricted = await unrestrictLink(link);
+                    if (!unrestricted) {
+                        return { streams: [] };
+                    }
+                    return {
+                        streams: [
+                            {
+                                title: file.path,
+                                url: encodeURI(unrestricted.download),
+                            },
+                        ],
+                    };
                 } else if (type === "series") {
                     if (
+                        fileId !== null &&
                         !isNaN(fileId) &&
+                        fileIndex !== null &&
                         !isNaN(fileIndex) &&
                         files[fileIndex] &&
                         files[fileIndex].id === fileId &&
@@ -897,53 +869,64 @@ module.exports = function (config) {
                     ) {
                         const file = files[fileIndex];
                         const link = links[fileIndex];
+                        if (!file || !link) {
+                            return { streams: [] };
+                        }
                         const unrestricted = await unrestrictLink(link);
-                        if (!unrestricted) return { streams: [] };
-                        const stream = {
-                            title: file.path,
-                            url: encodeURI(unrestricted.download),
+                        if (!unrestricted) {
+                            return { streams: [] };
+                        }
+                        return {
+                            streams: [
+                                {
+                                    title: file.path,
+                                    url: encodeURI(unrestricted.download),
+                                },
+                            ],
                         };
-                        return { streams: [stream] };
-                    } else {
-                        return { streams: [] };
                     }
-                } else {
                     return { streams: [] };
                 }
+                return { streams: [] };
             } else if (source === "download") {
                 const downloads = await fetchDownloads();
+                if (!downloads) {
+                    return { streams: [] };
+                }
                 const downloadItem = downloads.find(
-                    (d) => d.id === itemId && d.streamable === 1
+                    (d) => d.id === itemId && d.streamable === 1,
                 );
                 if (!downloadItem) {
                     return { streams: [] };
                 }
-                if (type === "movie") {
-                    const unrestricted = await unrestrictLink(
-                        downloadItem.download
-                    );
-                    if (!unrestricted) return { streams: [] };
-                    const stream = {
-                        title: downloadItem.filename,
-                        url: encodeURI(unrestricted.download),
-                    };
-                    return { streams: [stream] };
-                } else if (type === "series") {
-                    const unrestricted = await unrestrictLink(
-                        downloadItem.download
-                    );
-                    if (!unrestricted) return { streams: [] };
-                    const stream = {
-                        title: downloadItem.filename,
-                        url: encodeURI(unrestricted.download),
-                    };
-                    return { streams: [stream] };
-                } else {
+                const unrestricted = await unrestrictLink(
+                    downloadItem.download,
+                );
+                if (!unrestricted) {
                     return { streams: [] };
                 }
-            } else {
+                if (type === "movie") {
+                    return {
+                        streams: [
+                            {
+                                title: downloadItem.filename,
+                                url: encodeURI(unrestricted.download),
+                            },
+                        ],
+                    };
+                } else if (type === "series") {
+                    return {
+                        streams: [
+                            {
+                                title: downloadItem.filename,
+                                url: encodeURI(unrestricted.download),
+                            },
+                        ],
+                    };
+                }
                 return { streams: [] };
             }
+            return { streams: [] };
         } catch (error) {
             return { streams: [] };
         }
