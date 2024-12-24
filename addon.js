@@ -140,10 +140,7 @@ module.exports = function (config) {
             (part) => !knownPatterns.some((regex) => regex.test(part)),
         );
         title = parts
-            .map(
-                (word) =>
-                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
-            )
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
             .join(" ");
         const displayName = year ? `${title} (${year})` : title;
         return { title: displayName, searchTitle: title, year };
@@ -263,7 +260,9 @@ module.exports = function (config) {
                 t: searchTitle,
                 type: type === "movie" ? "movie" : "series",
             };
-            if (year) params.y = year;
+            if (year) {
+                params.y = year;
+            }
             const response = await axios.get("https://www.omdbapi.com/", {
                 params,
             });
@@ -470,14 +469,15 @@ module.exports = function (config) {
                 let filteredDownloads = downloads.filter((d) => {
                     if (!d.filename) return false;
                     const ext = path.extname(d.filename).toLowerCase();
-                    const isStreamable = d.streamable === 1;
-                    const isSeriesDownload = isSeries(d.filename);
+                    const seriesFlag = isSeries(d.filename);
+                    const isStreamable =
+                        d.streamable === 1 || (type === "series" && seriesFlag);
                     return (
                         VIDEO_EXTENSIONS.includes(ext) &&
                         !SAMPLE_FILE_REGEX.test(d.filename) &&
                         isStreamable &&
-                        ((type === "movie" && !isSeriesDownload) ||
-                            (type === "series" && isSeriesDownload))
+                        ((type === "movie" && !seriesFlag) ||
+                            (type === "series" && seriesFlag))
                     );
                 });
                 if (extra && extra.search) {
@@ -672,8 +672,12 @@ module.exports = function (config) {
                     }
                 }
                 const hostInfo = `File downloaded from: ${torrentInfo.host}`;
-                const fileSize = `File size: ${formatFileSize(torrentInfo.bytes)}`;
-                const addedDate = `Downloaded on: ${formatDate(torrentInfo.added)}`;
+                const fileSize = `File size: ${formatFileSize(
+                    torrentInfo.bytes,
+                )}`;
+                const addedDate = `Downloaded on: ${formatDate(
+                    torrentInfo.added,
+                )}`;
                 metaItem.description = [
                     metaItem.description,
                     hostInfo,
