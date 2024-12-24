@@ -47,7 +47,7 @@ app.post("/install", (req, res) => {
         config.omdbApiKey = omdbApiKey;
     }
     const configEncoded = Buffer.from(JSON.stringify(config)).toString(
-        "base64"
+        "base64",
     );
 
     const protocol = req.headers["x-forwarded-proto"] || req.protocol;
@@ -96,7 +96,7 @@ app.use("/:config", (req, res, next) => {
     let config;
     try {
         const configString = Buffer.from(configEncoded, "base64").toString(
-            "utf8"
+            "utf8",
         );
         config = JSON.parse(configString);
     } catch (e) {
