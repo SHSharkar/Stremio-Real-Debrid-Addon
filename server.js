@@ -55,35 +55,86 @@ app.post("/install", (req, res) => {
 
     const addonUrl = `${protocol}://${host}/${configEncoded}/manifest.json`;
     const addonInstallUrlNoProtocol = `${host}/${configEncoded}/manifest.json`;
+    const currentYear = new Date().getFullYear();
+    const version = `${pkg.version}`;
 
     res.send(`
         <!DOCTYPE html>
-        <html>
+        <html lang="en">
         <head>
             <title>Install Real Debrid Addon</title>
+            <meta charset="UTF-8" />
+            <meta
+                name="viewport"
+                content="width=device-width, initial-scale=1.0"
+            />
+            <link rel="apple-touch-icon-precomposed" sizes="57x57" href="icon/apple-touch-icon-57x57.png" />
+            <link rel="apple-touch-icon-precomposed" sizes="114x114" href="icon/apple-touch-icon-114x114.png" />
+            <link rel="apple-touch-icon-precomposed" sizes="72x72" href="icon/apple-touch-icon-72x72.png" />
+            <link rel="apple-touch-icon-precomposed" sizes="144x144" href="icon/apple-touch-icon-144x144.png" />
+            <link rel="apple-touch-icon-precomposed" sizes="60x60" href="icon/apple-touch-icon-60x60.png" />
+            <link rel="apple-touch-icon-precomposed" sizes="120x120" href="icon/apple-touch-icon-120x120.png" />
+            <link rel="apple-touch-icon-precomposed" sizes="76x76" href="icon/apple-touch-icon-76x76.png" />
+            <link rel="apple-touch-icon-precomposed" sizes="152x152" href="icon/apple-touch-icon-152x152.png" />
+            <link rel="icon" type="image/png" href="icon/favicon-196x196.png" sizes="196x196" />
+            <link rel="icon" type="image/png" href="icon/favicon-96x96.png" sizes="96x96" />
+            <link rel="icon" type="image/png" href="icon/favicon-32x32.png" sizes="32x32" />
+            <link rel="icon" type="image/png" href="icon/favicon-16x16.png" sizes="16x16" />
+            <link rel="icon" type="image/png" href="icon/favicon-128.png" sizes="128x128" />
             <link href="/dist/main.css" rel="stylesheet" />
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+            <link href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400..900&display=swap" rel="stylesheet" />
         </head>
-        <body class="bg-white flex items-center justify-center min-h-screen">
-            <div class="border-2 border-gray-300 bg-gradient-to-r from-gray-200 to-gray-300 p-8 rounded w-full max-w-md">
-                <h1 class="text-2xl font-bold mb-4">Install Real Debrid Addon</h1>
-                <p class="mb-4 font-medium">Click the link below to install the addon in Stremio:</p>
-                <a href="stremio://${addonInstallUrlNoProtocol}" class="rounded bg-indigo-600 px-2.5 py-1.5 text-lg font-semibold text-white shadow-md hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Install Addon</a>
-                <p class="mt-4 font-medium">Or add the following URL in Stremio:</p>
-                <p class="bg-gray-100 p-3 rounded break-all overflow-wrap-anywhere overflow-x-auto my-2 font-mono text-sm">${addonUrl}</p>
-                <p class="text-sm font-semibold text-orange-600 mt-4">
+        <body
+            class="min-h-screen bg-white font-sans sm:bg-gradient-to-t sm:from-electric-violet-300 sm:from-10% sm:via-sky-300 sm:via-30% sm:to-emerald-300 sm:to-90% sm:p-6 flex items-center justify-center"
+        >
+            <div
+                class="mx-auto w-full max-w-2xl rounded-lg border-2 border-gray-300 bg-gradient-to-r from-gray-50 to-gray-100 p-8"
+            >
+                <h1 class="mb-4 text-2xl md:text-3xl font-bold text-gray-700">
+                    Install Real Debrid Addon
+                </h1>
+                <p class="mb-4 text-base font-medium text-gray-600">
+                    Click the link below to install the addon in Stremio:
+                </p>
+                <a
+                    href="stremio://${addonInstallUrlNoProtocol}"
+                    class="mb-4 inline-block rounded bg-malachite-600 px-4 py-2 text-lg md:text-2xl font-semibold text-white shadow-md hover:bg-malachite-500 focus:outline-none focus:ring-2 focus:ring-malachite-600"
+                >
+                    Install Addon
+                </a>
+                <p class="mt-4 mb-2 text-base font-medium text-gray-700">
+                    Or add the following URL in Stremio:
+                </p>
+                <p
+                    class="break-all overflow-x-auto rounded border-2 border-gray-200 bg-gray-50 px-4 py-3 font-mono text-sm md:text-base text-gray-800"
+                >
+                    ${addonUrl}
+                </p>
+                <p class="mt-4 text-sm font-semibold text-pumpkin-600">
                     Disclaimer: This addon is not official and is not affiliated
                     with the
                     <a
                         href="https://real-debrid.com/"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="underline transition duration-300 hover:text-orange-700"
-                        >Real Debrid</a
+                        class="underline transition duration-300 hover:text-pumpkin-700"
                     >
+                        Real Debrid
+                    </a>
                     website.
                 </p>
                 <footer class="mt-4 text-center text-sm font-medium text-gray-600">
-                    &copy; ${new Date().getFullYear()} <a href="https://devwz.com" target="_blank" class="font-semibold text-blue-500 hover:text-blue-700">DEV Wizard</a>. All rights reserved. Version ${pkg.version}
+                    &copy; ${currentYear}
+                    <a
+                        href="https://devwz.com"
+                        target="_blank"
+                        class="font-semibold text-blue-ribbon-500 hover:text-blue-ribbon-700"
+                    >
+                        DEV Wizard
+                    </a>
+                    . All rights reserved. Version ${version}
                 </footer>
             </div>
         </body>
