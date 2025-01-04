@@ -26,21 +26,21 @@
 </head>
 
 <body
-    class="min-h-screen bg-white font-sans sm:bg-gradient-to-t sm:from-electric-violet-300 sm:from-10% sm:via-sky-300 sm:via-30% sm:to-emerald-300 sm:to-90% sm:p-6 flex items-center justify-center">
+    class="sm:from-electric-violet-300 flex min-h-screen items-center justify-center bg-white font-sans sm:bg-gradient-to-b sm:from-10% sm:via-sky-300 sm:via-30% sm:to-emerald-300 sm:to-90% sm:p-6">
     <div
         class="mx-auto w-full max-w-3xl rounded-lg border-2 border-gray-300 bg-gradient-to-r from-gray-50 to-gray-100 p-8 sm:p-8">
         <div
-            class="mb-4 flex items-center justify-center rounded-lg border-2 border-malachite-300 bg-gradient-to-r from-malachite-200 to-malachite-300 p-3">
+            class="border-electric-violet-300 from-electric-violet-300 to-electric-violet-400 mb-4 flex items-center justify-center rounded-lg border-2 bg-gradient-to-r p-3">
             <a href="/" class="inline-block">
-                <img src="icon/real-debrid-logo-white.png" class="h-24" alt="Real Debrid Icon" />
+                <img src="icon/real-debrid-logo-white.png" class="h-20" alt="Real Debrid Icon" />
             </a>
         </div>
         <div class="flex items-center justify-center">
-            <h1 class="mb-4 text-2xl font-bold text-malachite-700">
+            <h1 class="mb-4 text-2xl font-bold text-gray-700">
                 Configure Real Debrid Addon
             </h1>
         </div>
-        <p class="mb-4 rounded border-l-2 border-pumpkin-500 bg-pumpkin-100 p-3 text-sm font-medium text-pumpkin-500">
+        <p class="border-pumpkin-500 bg-pumpkin-100 text-pumpkin-500 mb-4 rounded border-l-2 p-3 text-sm font-medium">
             We don't save any information. Please make sure to keep track of
             your settings. Once you close the window, you won't be able to
             get your data back unless you set it up again.
@@ -51,27 +51,27 @@
                     Real Debrid API Key:
                 </label>
                 <input type="text" id="apiKey" name="apiKey" required
-                    class="block w-full rounded border-2 border-malachite-300 py-1.5 px-3 text-base font-medium text-gray-800 shadow-sm focus:border-malachite-400 focus:outline-none focus:ring-1 focus:ring-malachite-400" />
+                    class="border-electric-violet-300 focus:border-electric-violet-400 focus:ring-electric-violet-400 block w-full rounded border-2 px-3 py-1.5 text-base font-medium text-gray-800 shadow-sm focus:outline-none focus:ring-1" />
                 <p class="mt-2 text-sm text-gray-500">
                     You can obtain your Real Debrid API Key from
                     <a href="https://real-debrid.com/apitoken" target="_blank" rel="noopener noreferrer"
-                        class="font-medium text-blue-ribbon-500 hover:text-blue-ribbon-700">
+                        class="text-blue-ribbon-500 hover:text-blue-ribbon-700 font-medium">
                         here
                     </a>
                     .
                 </p>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div class="mb-4">
                     <label for="tmdbApiKey" class="mb-2 block text-base font-medium text-gray-700">
                         TMDb API Key (Optional):
                     </label>
                     <input type="text" id="tmdbApiKey" name="tmdbApiKey"
-                        class="block w-full rounded border-2 border-malachite-300 py-1.5 px-3 text-base font-medium text-gray-800 shadow-sm focus:border-malachite-400 focus:outline-none focus:ring-1 focus:ring-malachite-400" />
+                        class="border-electric-violet-300 focus:border-electric-violet-400 focus:ring-electric-violet-400 block w-full rounded border-2 px-3 py-1.5 text-base font-medium text-gray-800 shadow-sm focus:outline-none focus:ring-1" />
                     <p class="mt-2 text-sm text-gray-500">
                         Get your TMDb API Key from
                         <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer"
-                            class="font-medium text-blue-ribbon-500 hover:text-blue-ribbon-700">
+                            class="text-blue-ribbon-500 hover:text-blue-ribbon-700 font-medium">
                             here
                         </a>
                         .
@@ -82,11 +82,11 @@
                         OMDb API Key (Optional):
                     </label>
                     <input type="text" id="omdbApiKey" name="omdbApiKey"
-                        class="block w-full rounded border-2 border-malachite-300 py-1.5 px-3 text-base font-medium text-gray-800 shadow-sm focus:border-malachite-400 focus:outline-none focus:ring-1 focus:ring-malachite-400" />
+                        class="border-electric-violet-300 focus:border-electric-violet-400 focus:ring-electric-violet-400 block w-full rounded border-2 px-3 py-1.5 text-base font-medium text-gray-800 shadow-sm focus:outline-none focus:ring-1" />
                     <p class="mt-2 text-sm text-gray-500">
                         Get your OMDb API Key from
                         <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener noreferrer"
-                            class="font-medium text-blue-ribbon-500 hover:text-blue-ribbon-700">
+                            class="text-blue-ribbon-500 hover:text-blue-ribbon-700 font-medium">
                             here
                         </a>
                         .
@@ -95,17 +95,17 @@
             </div>
             <div class="flex items-center justify-between">
                 <button type="submit"
-                    class="rounded bg-malachite-600 px-4 py-2 text-lg font-medium text-white shadow-sm hover:bg-malachite-500 focus:outline-none focus:ring-2 focus:ring-malachite-500">
+                    class="bg-electric-violet-600 hover:bg-electric-violet-500 focus:ring-electric-violet-500 rounded px-4 py-2 text-lg font-medium text-white shadow-sm focus:outline-none focus:ring-2">
                     Configure Addon
                 </button>
             </div>
         </form>
         <div class="mt-4 flex items-center justify-center">
-            <p class="text-sm font-semibold text-pumpkin-600">
+            <p class="text-pumpkin-600 text-sm font-semibold">
                 Disclaimer: This addon is not official and is not affiliated
                 with the
                 <a href="https://real-debrid.com/" target="_blank" rel="noopener noreferrer"
-                    class="underline transition duration-300 hover:text-pumpkin-700">
+                    class="hover:text-pumpkin-700 underline transition duration-300">
                     Real Debrid
                 </a>
                 website.
@@ -115,13 +115,14 @@
             &copy;
             <span id="current-year"></span>
             <a href="https://devwz.com" target="_blank"
-                class="font-semibold text-blue-ribbon-500 hover:text-blue-ribbon-700">
+                class="text-blue-ribbon-500 hover:text-blue-ribbon-700 font-semibold">
                 DEV Wizard
             </a>
             . All rights reserved. Version {{VERSION}}
         </footer>
         <script>
-            document.getElementById("current-year").textContent = new Date().getFullYear();
+            document.getElementById("current-year").textContent =
+                new Date().getFullYear();
         </script>
     </div>
 </body>
