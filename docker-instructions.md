@@ -2,26 +2,27 @@
 
 ## Docker Deployment
 
-Deploying the **Stremio Real Debrid Addon** using Docker Compose is
-straightforward. Follow the steps below to get your addon up and running
-quickly.
+Deploying the **Stremio Real Debrid Addon** with Docker Compose is
+straightforward. The following instructions walk you through the entire process,
+including optional steps for public exposure via Cloudflare Tunnel.
 
 ## Prerequisites
 
-- **Docker:** Ensure Docker is installed on your system.
-  [Install Docker](https://docs.docker.com/get-started/get-docker/).
-- **Docker Compose:** Typically included with Docker Desktop. Verify
-  installation by running:
+- **Docker** Ensure Docker is installed on your system. If not, follow the
+  [official Docker installation guide](https://docs.docker.com/get-started/get-docker/).
+- **Docker Compose** Verify Docker Compose is installed by running:
 
   ```bash
   docker compose --version
   ```
 
+If you are using Docker Desktop, Docker Compose should already be included.
+
 ## Steps to Deploy
 
 ### **Clone the Repository**
 
-If you haven't already, clone the repository to your local machine:
+If you have not cloned the repository yet, do so with the following commands:
 
 ```bash
 git clone https://github.com/SHSharkar/Stremio-Real-Debrid-Addon.git
@@ -33,23 +34,23 @@ cd Stremio-Real-Debrid-Addon
 
 ### **Build and Start the Docker Containers**
 
-Execute the following command to build the Docker image and start the container
-in detached mode:
+Build the Docker image and start your containers in detached mode:
 
 ```bash
-docker compose up -d --build
+docker compose up -d --build --remove-orphans
 ```
 
 **Explanation:**
 
-- `up`: Creates and starts containers.
-- `-d`: Runs containers in detached mode (in the background).
-- `--build`: Forces a rebuild of the Docker image, ensuring all changes are
-  incorporated.
+- `up` creates and starts containers.
+- `-d` runs containers in detached mode (in the background).
+- `--build` forces a rebuild of the Docker image to incorporate any changes.
+- `--remove-orphans` removes containers that are no longer defined in the Docker
+  Compose file.
 
 ### **Verify the Container is Running**
 
-Check the status of your containers to ensure everything is running smoothly:
+Check the status of your containers:
 
 ```bash
 docker compose ps
@@ -58,32 +59,32 @@ docker compose ps
 **Expected Output:**
 
 ```bash
-      Name                     Command               State               Ports
+Name                     Command               State               Ports
 --------------------------------------------------------------------------------------
 realdebrid-addon   docker-entrypoint.sh npm start   Up      0.0.0.0:62316->62316/tcp
 ```
 
 ### **Access the Application**
 
-Open your web browser and navigate to:
+Open your browser and go to:
 
 ```bash
 http://localhost:62316
 ```
 
-_If deploying on a remote server, replace `localhost` with your server's IP
-address._
+If you are deploying on a remote server, replace `localhost` with the server’s
+IP address.
 
 ## Optional: Expose the Application Publicly Using Cloudflare Tunnel
 
-To make your addon accessible from the internet without exposing specific ports
-or using a public domain, you can utilize **Cloudflare Tunnel**.
+If you want to make your addon accessible over the internet without exposing
+specific ports or using a custom domain, consider **Cloudflare Tunnel**.
 
 ### **Install Cloudflare Tunnel (`cloudflared`)**
 
-Follow the
-[official installation guide](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
-to install `cloudflared` on your system.
+Refer to the
+[Cloudflare official guide](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
+to install `cloudflared`.
 
 ### **Authenticate `cloudflared` with Your Cloudflare Account**
 
@@ -91,8 +92,8 @@ to install `cloudflared` on your system.
 cloudflared login
 ```
 
-This command will open a browser window prompting you to log in to your
-Cloudflare account and authorize `cloudflared`.
+This command opens a browser window where you can log in and authorize
+`cloudflared`.
 
 ### **Create and Run the Tunnel**
 
@@ -106,9 +107,9 @@ cloudflared tunnel create stremio-realdebrid-addon
 cloudflared tunnel route dns stremio-realdebrid-addon your-subdomain.yourdomain.com
 ```
 
-_Replace `your-subdomain.yourdomain.com` with your desired subdomain. If you
-don't have a custom domain, Cloudflare provides a free `_.trycloudflare.com`
-domain.\*
+Replace `your-subdomain.yourdomain.com` with the subdomain you wish to use. If
+you do not have a custom domain, Cloudflare can provide a free
+`*.trycloudflare.com` domain.
 
 ### **Run the Tunnel to Point to Your Docker Container**
 
@@ -116,52 +117,44 @@ domain.\*
 cloudflared tunnel run stremio-realdebrid-addon
 ```
 
-_Ensure that this command points to the correct internal port (`62316`) where
-your Docker container is running._
+Make sure the tunnel points to the correct internal port (`62316`) used by your
+Docker container.
 
 ## **Access the Application Publicly**
 
-Navigate to your Cloudflare Tunnel URL:
+Open your browser and go to:
 
 ```bash
 https://your-subdomain.yourdomain.com
 ```
 
-_Replace with your actual subdomain provided by Cloudflare._
+Replace the above with the actual subdomain provided by Cloudflare.
 
 ---
 
 ## Managing the Docker Containers
 
-- **View Logs**
-
-  To monitor the application's logs:
+- **View Logs** To see the application logs in real time:
 
   ```bash
   docker compose logs -f realdebrid-addon
   ```
 
-- **Stop the Containers**
-
-  Gracefully stop the running containers:
+- **Stop the Containers** Gracefully stop running containers:
 
   ```bash
-  docker compose down
+  docker compose down --remove-orphans
   ```
 
-- **Restart the Containers**
-
-  If you need to restart the containers:
+- **Restart the Containers** If you need to restart your containers:
 
   ```bash
   docker compose restart realdebrid-addon
   ```
 
-- **Rebuild After Code Changes**
-
-  If you've made changes to the application code or dependencies, rebuild and
-  restart the containers:
+- **Rebuild After Code Changes** If any application code or dependencies change,
+  rebuild and restart:
 
   ```bash
-  docker compose up -d --build
+  docker compose up -d --build --remove-orphans
   ```
