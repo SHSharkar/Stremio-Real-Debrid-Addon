@@ -14,9 +14,29 @@ permissions:
 
 jobs:
   version_and_release:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Retrieve Git user
+        id: git_user
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          user_data=$(curl -s -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" -H "Accept: application/vnd.github+json" https://api.github.com/user)
+          user_login=$(echo "$user_data" | jq -r '.login')
+          user_email=$(echo "$user_data" | jq -r '.email')
+          if [ "$user_email" == "null" ] || [ "$user_email" == "" ]; then
+            user_email="$user_login@users.noreply.github.com"
+          fi
+          echo "user_login=$user_login" >> "$GITHUB_OUTPUT"
+          echo "user_email=$user_email" >> "$GITHUB_OUTPUT"
+
+      - name: Configure Git
+        run: |
+          git config user.name "${{ steps.git_user.outputs.user_login }}"
+          git config user.email "${{ steps.git_user.outputs.user_email }}"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -27,28 +47,23 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Bump version
         id: bump_version
         run: |
           NEW_VERSION=$(npm version patch -m "Bump version to %s")
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git push origin main
           git push origin --tags
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.bump_version.outputs.new_version }}
-          release_name: Release ${{ steps.bump_version.outputs.new_version }}
+          name: Release ${{ steps.bump_version.outputs.new_version }}
+          body: "Version bumped to ${{ steps.bump_version.outputs.new_version }}"
+          token: ${{ secrets.GH_TOKEN }}
