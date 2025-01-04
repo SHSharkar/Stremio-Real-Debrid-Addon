@@ -1,24 +1,36 @@
 # Details: https://github.com/kirill-markin/repo-to-text
 # Syntax: gitignore rules
 
-# Ignore files and directories based on .gitignore rules
+# Ignore files and directories for all sections from gitignore file
+# Default: True
 gitignore-import-and-ignore: True
 
-# Additional files and directories to ignore for tree and "Contents of ..." sections
+# Ignore files and directories for tree
+# and "Contents of ..." sections
 ignore-tree-and-content:
-    - ".repo-to-text-settings.yaml"
-    - "dist"
-    - "icon"
-    - "LICENSE"
-    - "node_modules"
-    - "screenshot"
+  - ".repo-to-text-settings.yaml"
+  - ".dockerignore"
+  - ".github"
+  - ".gitignore"
+  - ".prettierignore"
+  - ".prettierrc"
+  - "dist"
+  - "icon"
+  - "LICENSE"
+  - "node_modules"
+  - "package-lock.json"
+  - "screenshot"
 
-# Additional files to ignore specifically in the "Contents of ..." section
+# Ignore files and directories for "Contents of ..." section
 ignore-content:
-    - ".gitignore"
-    - ".prettierignore"
-    - ".prettierrc"
-    - "icon"
-    - "LICENSE"
-    - "package-lock.json"
-    - "screenshot"
+  - ".dockerignore"
+  - ".github"
+  - ".gitignore"
+  - ".prettierignore"
+  - ".prettierrc"
+  - "dist"
+  - "icon"
+  - "LICENSE"
+  - "node_modules"
+  - "package-lock.json"
+  - "screenshot"
