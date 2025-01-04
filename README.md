@@ -25,6 +25,7 @@ Stream your Real Debrid files in Stremio.
       - [Tailwind CSS Compilation](#tailwind-css-compilation)
   - [Configuration](#configuration)
   - [Usage](#usage)
+  - [Docker and CI/CD](#docker-and-cicd)
   - [Nginx Proxy Configuration](#nginx-proxy-configuration)
     - [Step 1: Install Nginx](#step-1-install-nginx)
     - [Step 2: Create Nginx Configuration](#step-2-create-nginx-configuration)
@@ -39,38 +40,64 @@ Stream your Real Debrid files in Stremio.
 ## Description
 
 This Stremio addon allows you to stream your Real Debrid files directly in
-Stremio. Access your Real Debrid torrents and downloads seamlessly within the
-Stremio interface.
+Stremio. It provides access to torrents and downloads from your Real Debrid
+account, pulls extended metadata from TMDb or OMDb, and offers multi-lingual
+support for a richer viewing experience. The addon is designed to be performant,
+with caching mechanisms in place for quicker repeated lookups.
 
 ## Features
 
-- **Stream Real Debrid Torrents and Downloads**: Access and stream your Real
-  Debrid torrents and downloads directly within Stremio.
-- **Support for Movies and Series**: The addon supports both movies and TV
-  series.
-- **Metadata Fetching**: Fetches metadata from TMDb and OMDb for enriched
-  content information.
-- **Easy Configuration**: Configure the addon easily through a web interface.
-- **Tailwind CSS Styling**: The addon interface is styled using Tailwind CSS.
-- **Customizable**: You can host the addon locally or use the hosted version.
-- **Nginx Proxy Support**: Instructions provided for setting up the addon behind
-  an Nginx proxy.
+- **Stream Real Debrid Torrents and Downloads**  
+  Access your Real Debrid torrents and downloads directly within Stremio for
+  both movies and TV series.
+
+- **Extended Metadata Integration**  
+  Retrieve additional content details from TMDb or OMDb. If you provide both API
+  keys, the system can attempt multiple lookups to find the most comprehensive
+  metadata.
+
+- **Multi-Lingual Support**  
+  Configure language preferences for a localized experience where metadata
+  (title, overview, etc.) can be fetched in supported languages.
+
+- **Enhanced Caching**  
+  Common metadata and API results are cached to improve performance for repeated
+  lookups.
+
+- **API Key Security**  
+  Environment variables are used for Real Debrid, TMDb, and OMDb API keys. No
+  user data is stored on the server, and keys can be passed securely via
+  environment settings.
+
+- **Easy Configuration**  
+  The `/configure` page offers a straightforward interface to enter or update
+  API keys.
+
+- **Tailwind CSS Styling**  
+  The addon’s interface is styled using Tailwind CSS, allowing for quick design
+  changes and consistent layouts.
+
+- **Docker and CI/CD Ready**  
+  Dockerfile and Docker Compose configurations are available for stable local or
+  production deployments. These can be integrated into continuous integration
+  pipelines for automated builds.
+
+- **Nginx Proxy Support**  
+  Detailed instructions are provided for running the addon behind an Nginx
+  proxy.
 
 ## Installation
 
 ### Production Deployment
 
-You can use the addon right away without installing it locally. Use the
-following production domain hosted by us:
+A public instance is available at the following URL:
 
 [https://stremio-real-debrid-addon.devwz.com](https://stremio-real-debrid-addon.devwz.com)
 
-Visit the above link and follow the instructions to configure and install the
-addon in Stremio.
+Visit this link, configure your API keys, and install the addon in Stremio as
+instructed on the page.
 
 ### Local Deployment
-
-You are welcome to host the addon locally.
 
 #### Prerequisites
 
@@ -99,14 +126,11 @@ You are welcome to host the addon locally.
 
 4. **Compile Tailwind CSS**:
 
-   The addon uses Tailwind CSS for styling. You need to compile the CSS before
-   starting the addon.
-
    ```bash
    npx tailwindcss -i ./src/main.css -o ./dist/main.css --watch
    ```
 
-   This will watch for changes in your CSS files and recompile as necessary.
+   This watches for CSS changes and recompiles automatically.
 
 5. **Start the addon**:
 
@@ -114,52 +138,66 @@ You are welcome to host the addon locally.
    npm start -- --launch
    ```
 
-   The `--launch` flag will open the addon in your default browser.
+   The `--launch` flag opens the addon in your default browser.
 
 6. **Configure the addon**:
 
-   Open your browser and navigate to
-   [http://localhost:62316](http://localhost:62316) if it doesn't open
-   automatically. Follow the instructions to configure and install the addon in
-   Stremio.
+   Navigate to [http://localhost:62316](http://localhost:62316/), then enter
+   your Real Debrid API key and, optionally, TMDb and OMDb keys for extended
+   metadata. You can also specify language preferences for multi-lingual
+   support. Follow the on-screen instructions to install the addon in Stremio.
 
 #### Tailwind CSS Compilation
 
-For production builds, you can compile Tailwind CSS without the `--watch` flag:
+To compile for production without watching:
 
 ```bash
 npx tailwindcss -i ./src/main.css -o ./dist/main.css --minify
 ```
 
-This will generate a minified CSS file suitable for production.
-
 ## Configuration
 
 When configuring the addon, you will need:
 
-- **Real Debrid API Key** (Required): Obtain it from
-  [here](https://real-debrid.com/apitoken).
-- **TMDb API Key** (Optional): For fetching additional metadata. Obtain it from
-  [here](https://www.themoviedb.org/settings/api).
-- **OMDb API Key** (Optional): For fetching additional metadata. Obtain it from
-  [here](https://www.omdbapi.com/apikey.aspx).
+- **REAL_DEBRID_API_KEY** (required)  
+   Obtain from [Real Debrid](https://real-debrid.com/apitoken).
+- **TMDB_API_KEY** (optional)  
+   Retrieve from [TMDb](https://www.themoviedb.org/settings/api).
+- **OMDB_API_KEY** (optional)  
+   Obtain from [OMDb](https://www.omdbapi.com/apikey.aspx).
+
+These can be set as environment variables or entered directly on the
+`/configure` page. Your data is never saved on the server, so you will need to
+re-enter keys if the configuration is cleared.
 
 ## Usage
 
-After installing the addon, you can access your Real Debrid torrents and
-downloads directly in Stremio. The addon provides catalogs for movies and series
-from your Real Debrid account.
+After installation, your Real Debrid torrents and downloads appear as new
+catalogs in Stremio. Caching enhances performance for subsequent lookups.
+Multi-lingual data is fetched if you have provided the relevant API key(s) and
+specified a supported language preference.
+
+## Docker and CI/CD
+
+This project includes a Dockerfile and `docker-compose.yml` to facilitate both
+local testing and production deployment. Refer to `docker-instructions.md` for
+step-by-step Docker usage. You can also integrate these setups into your CI/CD
+pipelines for automated builds and deployments.
+
+To deploy quickly:
+
+```bash
+docker compose up -d --build
+```
+
+Set environment variables (e.g., `REAL_DEBRID_API_KEY`, `TMDB_API_KEY`,
+`OMDB_API_KEY`) either in your shell or via a `.env` file.
 
 ## Nginx Proxy Configuration
 
-If you want to use the addon behind an Nginx proxy, follow these step-by-step
-instructions:
+If you prefer running the addon behind an Nginx proxy, follow these steps:
 
 ### Step 1: Install Nginx
-
-If Nginx is not installed, install it using your package manager.
-
-For Ubuntu/Debian:
 
 ```bash
 sudo apt update
@@ -168,13 +206,9 @@ sudo apt install nginx
 
 ### Step 2: Create Nginx Configuration
 
-Create a new Nginx server block configuration file:
-
 ```bash
 sudo nano /etc/nginx/sites-available/stremio-realdebrid
 ```
-
-Add the following configuration:
 
 ```nginx
 server {
@@ -196,38 +230,30 @@ Replace `your.domain.com` with your actual domain.
 
 ### Step 3: Enable the Configuration
 
-Enable the new configuration by creating a symbolic link:
-
 ```bash
 sudo ln -s /etc/nginx/sites-available/stremio-realdebrid /etc/nginx/sites-enabled/
 ```
 
 ### Step 4: Test Nginx Configuration
 
-Test the Nginx configuration for syntax errors:
-
 ```bash
 sudo nginx -t
-```
-
-If the test is successful, restart Nginx:
-
-```bash
 sudo systemctl restart nginx
 ```
 
 ### Step 5: Configure Firewall (if necessary)
 
-Ensure that your firewall allows HTTP traffic (port 80).
+Allow HTTP traffic on port 80 if your firewall is enabled.
 
 ### Step 6: Access the Addon
 
-Navigate to `http://your.domain.com` in your browser. Follow the instructions to
-configure and install the addon in Stremio.
+Visit `http://your.domain.com` in your browser. Configure your API keys and
+install the addon in Stremio.
 
 ## Contributing
 
-Contributions are welcome! Please fork the repository and submit a pull request.
+Contributions are welcome! Please fork this repository and submit a pull request
+with your changes or improvements.
 
 ## License
 
